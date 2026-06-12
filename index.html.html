@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fondo Manga — convierte fotos en fondos de cómic</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#F7F4EC;
+  --tinta:#121212;
+  --trama:#8a8a8a;
+  --azul:#5B8FB9;        /* lápiz azul no-foto */
+  --azul-claro:#DCE9F2;
+  --rojo:#C8331F;        /* sello de tinta */
+  --borde:3px solid var(--tinta);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Zen Maru Gothic',system-ui,sans-serif;
+  background:var(--papel);
+  color:var(--tinta);
+  /* textura de trama de puntos en el fondo de la interfaz */
+  background-image:radial-gradient(circle, rgba(18,18,18,.06) 1px, transparent 1.4px);
+  background-size:9px 9px;
+  min-height:100vh;
+}
+header{
+  border-bottom:var(--borde);
+  background:var(--papel);
+  padding:14px 18px;
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+h1{
+  font-family:'Archivo Black',sans-serif;
+  font-size:clamp(1.3rem,4vw,1.9rem);
+  letter-spacing:-.5px;
+  text-transform:uppercase;
+}
+h1 .kana{color:var(--azul);font-size:.75em}
+header p{font-size:.85rem;color:#555}
+
+.layout{
+  display:grid;
+  grid-template-columns:330px 1fr;
+  gap:0;
+  max-width:1280px;margin:0 auto;
+  min-height:calc(100vh - 70px);
+}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  aside{border-right:none !important;border-bottom:var(--borde)}
+}
+
+/* ---------- Panel de controles ---------- */
+aside{
+  border-right:var(--borde);
+  background:var(--papel);
+  padding:18px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.bloque{display:flex;flex-direction:column;gap:10px}
+.bloque > h2{
+  font-family:'Archivo Black',sans-serif;
+  font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+  border-bottom:2px solid var(--tinta);
+  padding-bottom:4px;
+}
+
+/* zona de carga */
+#drop{
+  border:2.5px dashed var(--tinta);
+  background:#fff;
+  padding:22px 14px;
+  text-align:center;cursor:pointer;
+  transition:background .15s;
+  font-size:.9rem;line-height:1.45;
+}
+#drop:hover,#drop.over{background:var(--azul-claro)}
+#drop strong{display:block;font-size:1rem}
+#drop small{color:#666}
+#file{display:none}
+
+/* presets */
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.presets button{
+  font-family:'Zen Maru Gothic',sans-serif;font-weight:700;
+  font-size:.82rem;padding:9px 6px;
+  background:#fff;border:2px solid var(--tinta);
+  cursor:pointer;transition:all .12s;
+}
+.presets button:hover{background:var(--tinta);color:var(--papel)}
+.presets button.activo{background:var(--tinta);color:var(--papel)}
+
+/* sliders */
+.ctrl{display:flex;flex-direction:column;gap:3px}
+.ctrl .fila{display:flex;justify-content:space-between;align-items:baseline}
+.ctrl label{font-size:.84rem;font-weight:700}
+.ctrl output{font-family:'IBM Plex Mono',monospace;font-size:.76rem;color:var(--azul);font-weight:600}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:22px;background:transparent;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--tinta)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--papel);border:3px solid var(--tinta);
+  margin-top:-7.5px;
+}
+input[type=range]::-moz-range-track{height:3px;background:var(--tinta)}
+input[type=range]::-moz-range-thumb{
+  width:12px;height:12px;border-radius:50%;
+  background:var(--papel);border:3px solid var(--tinta);
+}
+input[type=range]:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
+
+/* segmentos (tipo de trama) */
+.segmentos{display:flex;border:2px solid var(--tinta)}
+.segmentos button{
+  flex:1;padding:8px 4px;font-size:.8rem;font-weight:700;
+  font-family:'Zen Maru Gothic',sans-serif;
+  background:#fff;border:none;cursor:pointer;
+  border-right:2px solid var(--tinta);
+}
+.segmentos button:last-child{border-right:none}
+.segmentos button.activo{background:var(--tinta);color:var(--papel)}
+.segmentos button:focus-visible{outline:3px solid var(--azul);outline-offset:-3px}
+
+.check{display:flex;align-items:center;gap:8px;font-size:.84rem;font-weight:700;cursor:pointer}
+.check input{width:17px;height:17px;accent-color:var(--tinta);cursor:pointer}
+
+/* botones de acción */
+.acciones{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.btn{
+  font-family:'Archivo Black',sans-serif;
+  font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;
+  padding:12px;border:var(--borde);cursor:pointer;
+  background:var(--tinta);color:var(--papel);
+  box-shadow:4px 4px 0 rgba(18,18,18,.25);
+  transition:transform .1s, box-shadow .1s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(18,18,18,.3)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(18,18,18,.3)}
+.btn.sec{background:#fff;color:var(--tinta)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+
+/* ---------- Zona del lienzo ---------- */
+main{
+  padding:26px 22px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+.viñeta{
+  position:relative;
+  background:#fff;
+  border:4px solid var(--tinta);
+  box-shadow:8px 8px 0 rgba(18,18,18,.18);
+  transform:rotate(-.4deg);
+  max-width:100%;
+  padding:6px;
+}
+.viñeta::after{ /* sello rojo de esquina, firma de la página */
+  content:"画";
+  position:absolute;right:-14px;top:-14px;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  background:var(--rojo);color:#fff;
+  font-size:18px;font-weight:700;
+  border:2px solid var(--tinta);
+  transform:rotate(4deg);
+}
+#lienzo{display:block;max-width:100%;height:auto;background:#fff}
+#vacio{
+  width:min(640px,86vw);aspect-ratio:4/3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  color:#999;text-align:center;padding:20px;
+}
+#vacio .kanji{font-size:64px;color:#ddd;font-family:'Zen Maru Gothic',sans-serif}
+.barra-lienzo{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.mini{
+  font-size:.78rem;font-weight:700;padding:8px 14px;
+  background:#fff;border:2px solid var(--tinta);cursor:pointer;
+  font-family:'Zen Maru Gothic',sans-serif;
+}
+.mini:active{background:var(--azul-claro)}
+#estado{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#777;text-align:center}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fondo <span class="kana">マンガ</span> Manga</h1>
+  <p>Sube una foto de referencia y conviértela en un fondo de cómic con líneas de tinta y tramas.</p>
+</header>
+
+<div class="layout">
+<aside>
+
+  <div class="bloque">
+    <h2>1 · Foto de referencia</h2>
+    <div id="drop" role="button" tabindex="0" aria-label="Subir foto">
+      <strong>Toca o arrastra una foto aquí</strong>
+      <small>JPG, PNG o WebP · se procesa en tu dispositivo, no se sube a ningún servidor</small>
+    </div>
+    <input type="file" id="file" accept="image/*">
+  </div>
+
+  <div class="bloque">
+    <h2>2 · Estilo rápido</h2>
+    <div class="presets">
+      <button data-preset="shonen" class="activo">Shōnen</button>
+      <button data-preset="fino">Trama fina</button>
+      <button data-preset="duro">Sombra dura</button>
+      <button data-preset="nocturno">Nocturno</button>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>3 · Ajustes</h2>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rLinea">Detalle de línea</label><output id="oLinea">50</output></div>
+      <input type="range" id="rLinea" min="0" max="100" value="50">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rGrosor">Grosor de línea</label><output id="oGrosor">1</output></div>
+      <input type="range" id="rGrosor" min="0" max="3" value="1">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rNiveles">Niveles de tono</label><output id="oNiveles">3</output></div>
+      <input type="range" id="rNiveles" min="2" max="6" value="3">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rTrama">Tamaño de trama</label><output id="oTrama">6</output></div>
+      <input type="range" id="rTrama" min="3" max="14" value="6">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rContraste">Contraste</label><output id="oContraste">15</output></div>
+      <input type="range" id="rContraste" min="-50" max="80" value="15">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rBrillo">Brillo</label><output id="oBrillo">0</output></div>
+      <input type="range" id="rBrillo" min="-60" max="60" value="0">
+    </div>
+
+    <div class="ctrl">
+      <label style="font-size:.84rem">Tipo de trama</label>
+      <div class="segmentos" id="segTrama">
+        <button data-trama="puntos" class="activo">Puntos</button>
+        <button data-trama="lineas">Líneas</button>
+        <button data-trama="ninguna">Sin trama</button>
+      </div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="chkNegro" checked> Sombras más oscuras en negro sólido</label>
+    <label class="check"><input type="checkbox" id="chkBlanco" checked> Aclarar zonas de luz (papel limpio)</label>
+  </div>
+
+  <div class="acciones">
+    <button class="btn sec" id="btnOriginal" disabled>Ver foto original (mantener)</button>
+    <button class="btn" id="btnExportar" disabled>Descargar PNG</button>
+  </div>
+
+</aside>
+
+<main>
+  <div class="viñeta">
+    <div id="vacio">
+      <div class="kanji">背景</div>
+      <p>Tu viñeta aparecerá aquí.<br>Empieza subiendo una foto del lugar que quieres dibujar.</p>
+    </div>
+    <canvas id="lienzo" hidden></canvas>
+  </div>
+  <div class="barra-lienzo" id="barra" hidden>
+    <button class="mini" id="btnRotar">↻ Rotar 90°</button>
+    <button class="mini" id="btnOtra">Cambiar foto</button>
+  </div>
+  <p id="estado"></p>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- estado ---------- */
+const S = {
+  img: null,            // HTMLImageElement original
+  rot: 0,               // rotación 0/90/180/270
+  linea: 50,
+  grosor: 1,
+  niveles: 3,
+  trama: 6,
+  contraste: 15,
+  brillo: 0,
+  tipoTrama: 'puntos',
+  negroSolido: true,
+  blancoLimpio: true,
+};
+
+const PRESETS = {
+  shonen:   {linea:50, grosor:1, niveles:3, trama:6,  contraste:15, brillo:0,  tipoTrama:'puntos', negroSolido:true,  blancoLimpio:true},
+  fino:     {linea:65, grosor:0, niveles:5, trama:4,  contraste:5,  brillo:5,  tipoTrama:'puntos', negroSolido:false, blancoLimpio:true},
+  duro:     {linea:40, grosor:2, niveles:2, trama:8,  contraste:45, brillo:0,  tipoTrama:'ninguna',negroSolido:true,  blancoLimpio:true},
+  nocturno: {linea:55, grosor:1, niveles:4, trama:7,  contraste:25, brillo:-25,tipoTrama:'lineas', negroSolido:true,  blancoLimpio:false},
+};
+
+const $ = id => document.getElementById(id);
+const lienzo = $('lienzo'), ctx = lienzo.getContext('2d');
+const PREVIEW_MAX = 1100;   // lado mayor en vista previa
+const EXPORT_MAX  = 2600;   // lado mayor al exportar
+
+/* ---------- carga de imagen ---------- */
+const drop = $('drop'), file = $('file');
+drop.addEventListener('click', () => file.click());
+drop.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();} });
+$('btnOtra').addEventListener('click', () => file.click());
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => {e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) cargar(f); });
+file.addEventListener('change', () => { if(file.files[0]) cargar(file.files[0]); });
+
+function cargar(f){
+  if(!f.type.startsWith('image/')){ estado('El archivo no es una imagen.'); return; }
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    S.img = img; S.rot = 0;
+    $('vacio').hidden = true; lienzo.hidden = false; $('barra').hidden = false;
+    $('btnExportar').disabled = false; $('btnOriginal').disabled = false;
+    procesar();
+  };
+  img.onerror = () => estado('No se pudo leer la imagen.');
+  img.src = url;
+}
+
+/* ---------- controles ---------- */
+function liga(idRange, idOut, clave){
+  const r = $(idRange), o = $(idOut);
+  r.addEventListener('input', () => { S[clave] = +r.value; o.textContent = r.value; pedirProceso(); });
+}
+liga('rLinea','oLinea','linea');
+liga('rGrosor','oGrosor','grosor');
+liga('rNiveles','oNiveles','niveles');
+liga('rTrama','oTrama','trama');
+liga('rContraste','oContraste','contraste');
+liga('rBrillo','oBrillo','brillo');
+
+$('chkNegro').addEventListener('change', e => { S.negroSolido = e.target.checked; pedirProceso(); });
+$('chkBlanco').addEventListener('change', e => { S.blancoLimpio = e.target.checked; pedirProceso(); });
+
+document.querySelectorAll('#segTrama button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#segTrama button').forEach(x => x.classList.remove('activo'));
+    b.classList.add('activo');
+    S.tipoTrama = b.dataset.trama;
+    pedirProceso();
+  });
+});
+
+document.querySelectorAll('.presets button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.presets button').forEach(x => x.classList.remove('activo'));
+    b.classList.add('activo');
+    aplicarPreset(PRESETS[b.dataset.preset]);
+  });
+});
+
+function aplicarPreset(p){
+  Object.assign(S, p);
+  $('rLinea').value = p.linea;       $('oLinea').textContent = p.linea;
+  $('rGrosor').value = p.grosor;     $('oGrosor').textContent = p.grosor;
+  $('rNiveles').value = p.niveles;   $('oNiveles').textContent = p.niveles;
+  $('rTrama').value = p.trama;       $('oTrama').textContent = p.trama;
+  $('rContraste').value = p.contraste; $('oContraste').textContent = p.contraste;
+  $('rBrillo').value = p.brillo;     $('oBrillo').textContent = p.brillo;
+  $('chkNegro').checked = p.negroSolido;
+  $('chkBlanco').checked = p.blancoLimpio;
+  document.querySelectorAll('#segTrama button').forEach(x =>
+    x.classList.toggle('activo', x.dataset.trama === p.tipoTrama));
+  pedirProceso();
+}
+
+$('btnRotar').addEventListener('click', () => { S.rot = (S.rot + 90) % 360; pedirProceso(); });
+
+/* ver original manteniendo pulsado */
+const btnOrig = $('btnOriginal');
+let mostrandoOriginal = false;
+function verOriginal(on){
+  if(!S.img || on === mostrandoOriginal) return;
+  mostrandoOriginal = on;
+  if(on){ dibujarOriginal(); } else { procesar(); }
+}
+['mousedown','touchstart'].forEach(ev => btnOrig.addEventListener(ev, e => {e.preventDefault();verOriginal(true);}));
+['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btnOrig.addEventListener(ev, () => verOriginal(false)));
+
+/* ---------- proceso (con debounce ligero) ---------- */
+let timer = null;
+function pedirProceso(){
+  if(!S.img) return;
+  clearTimeout(timer);
+  timer = setTimeout(procesar, 60);
+}
+
+function medidas(maxLado){
+  let w = S.img.naturalWidth, h = S.img.naturalHeight;
+  if(S.rot % 180 !== 0) [w,h] = [h,w];
+  const esc = Math.min(1, maxLado / Math.max(w,h));
+  return {w: Math.round(w*esc), h: Math.round(h*esc)};
+}
+
+function dibujarFuente(c, w, h){
+  const cx = c.getContext('2d', {willReadFrequently:true});
+  cx.save();
+  cx.translate(w/2, h/2);
+  cx.rotate(S.rot * Math.PI/180);
+  const iw = (S.rot % 180 !== 0) ? h : w;
+  const ih = (S.rot % 180 !== 0) ? w : h;
+  cx.drawImage(S.img, -iw/2, -ih/2, iw, ih);
+  cx.restore();
+  return cx;
+}
+
+function dibujarOriginal(){
+  const {w,h} = medidas(PREVIEW_MAX);
+  lienzo.width = w; lienzo.height = h;
+  dibujarFuente(lienzo, w, h);
+}
+
+function procesar(){
+  if(!S.img) return;
+  const t0 = performance.now();
+  const {w,h} = medidas(PREVIEW_MAX);
+  lienzo.width = w; lienzo.height = h;
+  renderManga(lienzo, w, h);
+  estado(`${w}×${h}px · procesado en ${Math.round(performance.now()-t0)} ms`);
+}
+
+/* ---------- núcleo: foto → manga ---------- */
+function renderManga(canvas, w, h){
+  const cx = dibujarFuente(canvas, w, h);
+  const src = cx.getImageData(0, 0, w, h);
+  const d = src.data;
+  const n = w * h;
+
+  /* 1) escala de grises + brillo/contraste */
+  const gris = new Float32Array(n);
+  const fc = (259 * (S.contraste + 255)) / (255 * (259 - S.contraste));
+  for(let i=0, p=0; i<n; i++, p+=4){
+    let g = d[p]*0.299 + d[p+1]*0.587 + d[p+2]*0.114;
+    g = fc * (g - 128) + 128 + S.brillo;
+    gris[i] = g < 0 ? 0 : (g > 255 ? 255 : g);
+  }
+
+  /* 2) suavizado 3×3 para limpiar ruido antes de detectar bordes */
+  const suave = new Float32Array(n);
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      let s=0, c=0;
+      for(let dy=-1; dy<=1; dy++){
+        const yy = y+dy; if(yy<0||yy>=h) continue;
+        for(let dx=-1; dx<=1; dx++){
+          const xx = x+dx; if(xx<0||xx>=w) continue;
+          s += gris[yy*w+xx]; c++;
+        }
+      }
+      suave[y*w+x] = s/c;
+    }
+  }
+
+  /* 3) bordes Sobel → líneas de tinta */
+  const umbral = 30 + (100 - S.linea) * 2.2;   // más detalle = umbral más bajo
+  let linea = new Uint8Array(n);
+  for(let y=1; y<h-1; y++){
+    const r0=(y-1)*w, r1=y*w, r2=(y+1)*w;
+    for(let x=1; x<w-1; x++){
+      const gx = -suave[r0+x-1] - 2*suave[r1+x-1] - suave[r2+x-1]
+                + suave[r0+x+1] + 2*suave[r1+x+1] + suave[r2+x+1];
+      const gy = -suave[r0+x-1] - 2*suave[r0+x] - suave[r0+x+1]
+                + suave[r2+x-1] + 2*suave[r2+x] + suave[r2+x+1];
+      if(Math.sqrt(gx*gx + gy*gy) > umbral) linea[r1+x] = 1;
+    }
+  }
+
+  /* 4) engrosar la línea (dilatación) */
+  for(let pase=0; pase<S.grosor; pase++){
+    const ampliada = new Uint8Array(linea);
+    for(let y=1; y<h-1; y++){
+      for(let x=1; x<w-1; x++){
+        const i = y*w+x;
+        if(linea[i]) continue;
+        if(linea[i-1]||linea[i+1]||linea[i-w]||linea[i+w]) ampliada[i] = 1;
+      }
+    }
+    linea = ampliada;
+  }
+
+  /* 5) tonos: cuantizar cobertura y aplicar trama */
+  const niveles = S.niveles;
+  const celda = S.trama;
+  const cos45 = Math.SQRT1_2, sin45 = Math.SQRT1_2;
+  const conTrama = S.tipoTrama !== 'ninguna';
+  const esPuntos = S.tipoTrama === 'puntos';
+
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      const i = y*w + x, p = i*4;
+      let negro = false;
+
+      if(linea[i]){
+        negro = true;
+      } else {
+        /* cobertura de tinta deseada: 0 = papel, 1 = negro */
+        let cob = 1 - suave[i]/255;
+        /* cuantizar a escalones planos, como tramas adhesivas reales */
+        let nivel = Math.round(cob * (niveles - 1));
+        cob = nivel / (niveles - 1);
+
+        if(S.blancoLimpio && nivel === 0){
+          negro = false;
+        } else if(S.negroSolido && nivel === niveles-1){
+          negro = true;
+        } else if(conTrama && cob > 0){
+          /* coordenadas rotadas 45° en celdas */
+          const u = (x*cos45 + y*sin45) / celda;
+          const v = (-x*sin45 + y*cos45) / celda;
+          if(esPuntos){
+            const fu = u - Math.floor(u) - 0.5;
+            const fv = v - Math.floor(v) - 0.5;
+            /* punto crece con la oscuridad; área ≈ cobertura */
+            negro = (fu*fu + fv*fv) / 0.5 < cob;
+          } else {
+            const fv = v - Math.floor(v);
+            negro = Math.abs(fv - 0.5) < cob/2;
+          }
+        } else if(!conTrama){
+          /* sin trama: escalones se vuelven blanco/negro puros */
+          negro = cob > 0.5;
+        }
+      }
+
+      const val = negro ? 18 : 255;   /* tinta casi negra sobre papel blanco */
+      d[p] = d[p+1] = d[p+2] = val;
+      d[p+3] = 255;
+    }
+  }
+
+  cx.putImageData(src, 0, 0);
+}
+
+/* ---------- exportar ---------- */
+$('btnExportar').addEventListener('click', () => {
+  if(!S.img) return;
+  estado('Generando PNG en alta resolución…');
+  setTimeout(() => {
+    const {w,h} = medidas(EXPORT_MAX);
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    renderManga(off, w, h);
+    off.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'fondo-manga.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      estado(`PNG exportado · ${w}×${h}px`);
+    }, 'image/png');
+  }, 30);
+});
+
+function estado(txt){ $('estado').textContent = txt; }
+
+})();
+</script>
+</body>
+</html>
