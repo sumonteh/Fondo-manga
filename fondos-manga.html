@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fondo Manga — convierte fotos en fondos de cómic</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#F7F4EC;
+  --tinta:#121212;
+  --azul:#5B8FB9;
+  --azul-claro:#DCE9F2;
+  --rojo:#C8331F;
+  --borde:3px solid var(--tinta);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Zen Maru Gothic',system-ui,sans-serif;
+  background:var(--papel);color:var(--tinta);
+  background-image:radial-gradient(circle, rgba(18,18,18,.06) 1px, transparent 1.4px);
+  background-size:9px 9px;min-height:100vh;
+}
+header{
+  border-bottom:var(--borde);background:var(--papel);
+  padding:14px 18px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+h1{
+  font-family:'Archivo Black',sans-serif;
+  font-size:clamp(1.3rem,4vw,1.9rem);
+  letter-spacing:-.5px;text-transform:uppercase;
+}
+h1 .kana{color:var(--azul);font-size:.75em}
+header p{font-size:.85rem;color:#555}
+
+.layout{
+  display:grid;grid-template-columns:340px 1fr;
+  max-width:1280px;margin:0 auto;
+  min-height:calc(100vh - 70px);
+}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  aside{border-right:none !important;border-bottom:var(--borde)}
+}
+aside{
+  border-right:var(--borde);background:var(--papel);
+  padding:18px;display:flex;flex-direction:column;gap:18px;
+}
+.bloque{display:flex;flex-direction:column;gap:10px}
+.bloque > h2{
+  font-family:'Archivo Black',sans-serif;
+  font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+  border-bottom:2px solid var(--tinta);padding-bottom:4px;
+}
+#drop{
+  border:2.5px dashed var(--tinta);background:#fff;
+  padding:22px 14px;text-align:center;cursor:pointer;
+  transition:background .15s;font-size:.9rem;line-height:1.45;
+}
+#drop:hover,#drop.over{background:var(--azul-claro)}
+#drop strong{display:block;font-size:1rem}
+#drop small{color:#666}
+#file{display:none}
+
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.presets button{
+  font-family:'Zen Maru Gothic',sans-serif;font-weight:700;
+  font-size:.82rem;padding:9px 6px;
+  background:#fff;border:2px solid var(--tinta);
+  cursor:pointer;transition:all .12s;
+}
+.presets button:hover,.presets button.activo{background:var(--tinta);color:var(--papel)}
+
+.ctrl{display:flex;flex-direction:column;gap:3px}
+.ctrl .fila{display:flex;justify-content:space-between;align-items:baseline}
+.ctrl label,.etiqueta{font-size:.84rem;font-weight:700}
+.ctrl output{font-family:'IBM Plex Mono',monospace;font-size:.76rem;color:var(--azul);font-weight:600}
+.nota{font-size:.72rem;color:#777;line-height:1.4}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:22px;background:transparent;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--tinta)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--papel);border:3px solid var(--tinta);margin-top:-7.5px;
+}
+input[type=range]::-moz-range-track{height:3px;background:var(--tinta)}
+input[type=range]::-moz-range-thumb{
+  width:12px;height:12px;border-radius:50%;
+  background:var(--papel);border:3px solid var(--tinta);
+}
+input[type=range]:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
+
+.segmentos{display:flex;border:2px solid var(--tinta);flex-wrap:wrap}
+.segmentos button{
+  flex:1;min-width:25%;padding:8px 4px;font-size:.78rem;font-weight:700;
+  font-family:'Zen Maru Gothic',sans-serif;
+  background:#fff;border:none;cursor:pointer;
+  border-right:2px solid var(--tinta);
+}
+.segmentos button:last-child{border-right:none}
+.segmentos button.activo{background:var(--tinta);color:var(--papel)}
+.segmentos button:focus-visible{outline:3px solid var(--azul);outline-offset:-3px}
+
+.check{display:flex;align-items:center;gap:8px;font-size:.84rem;font-weight:700;cursor:pointer}
+.check input{width:17px;height:17px;accent-color:var(--tinta);cursor:pointer}
+
+.acciones{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.btn{
+  font-family:'Archivo Black',sans-serif;
+  font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;
+  padding:12px;border:var(--borde);cursor:pointer;
+  background:var(--tinta);color:var(--papel);
+  box-shadow:4px 4px 0 rgba(18,18,18,.25);
+  transition:transform .1s, box-shadow .1s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(18,18,18,.3)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(18,18,18,.3)}
+.btn.sec{background:#fff;color:var(--tinta)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+
+main{
+  padding:26px 22px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+.viñeta{
+  position:relative;background:#fff;
+  border:4px solid var(--tinta);
+  box-shadow:8px 8px 0 rgba(18,18,18,.18);
+  max-width:100%;padding:6px;
+}
+.viñeta::after{
+  content:"画";
+  position:absolute;right:-14px;top:-14px;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  background:var(--rojo);color:#fff;font-size:18px;font-weight:700;
+  border:2px solid var(--tinta);transform:rotate(4deg);
+}
+#lienzo{display:block;background:#fff}
+#vacio{
+  width:min(640px,86vw);aspect-ratio:4/3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  color:#999;text-align:center;padding:20px;
+}
+#vacio .kanji{font-size:64px;color:#ddd}
+.barra-lienzo{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.mini{
+  font-size:.78rem;font-weight:700;padding:8px 14px;
+  background:#fff;border:2px solid var(--tinta);cursor:pointer;
+  font-family:'Zen Maru Gothic',sans-serif;
+}
+.mini:active{background:var(--azul-claro)}
+#estado{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#777;text-align:center;max-width:640px}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fondo <span class="kana">マンガ</span> Manga <span style="font-size:.5em;color:var(--rojo)">v4</span></h1>
+  <p>Convierte fotos en fondos de cómic: línea G-pen, achurado, tramas sin moiré y exportación a 300 dpi.</p>
+</header>
+
+<div class="layout">
+<aside>
+
+  <div class="bloque">
+    <h2>1 · Foto de referencia</h2>
+    <div id="drop" role="button" tabindex="0" aria-label="Subir foto">
+      <strong>Toca o arrastra una foto aquí</strong>
+      <small>JPG, PNG o WebP · se procesa en tu dispositivo, no se sube a ningún servidor</small>
+    </div>
+    <input type="file" id="file" accept="image/*">
+  </div>
+
+  <div class="bloque">
+    <h2>2 · Estilo rápido</h2>
+    <div class="presets">
+      <button data-preset="pluma" class="activo">Pluma</button>
+      <button data-preset="shonen">Shōnen</button>
+      <button data-preset="fino">Trama fina</button>
+      <button data-preset="duro">Sombra dura</button>
+      <button data-preset="nocturno">Nocturno</button>
+      <button data-preset="boceto">Boceto claro</button>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>3 · Línea</h2>
+
+    <div class="ctrl">
+      <span class="etiqueta">Motor de línea</span>
+      <div class="segmentos" id="segMotor">
+        <button data-motor="tinta" class="activo">Entintado</button>
+        <button data-motor="contorno">Contorno</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rLinea">Detalle de línea</label><output id="oLinea">70</output></div>
+      <input type="range" id="rLinea" min="0" max="100" value="70">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rGrosor">Grosor de línea</label><output id="oGrosor">1</output></div>
+      <input type="range" id="rGrosor" min="0" max="6" value="1">
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rTextura">Textura G-pen</label><output id="oTextura">45</output></div>
+      <input type="range" id="rTextura" min="0" max="100" value="45">
+      <p class="nota">Rompe la uniformidad del trazo: la línea se adelgaza, engruesa y se corta de forma orgánica, como plumilla G sobre papel. 0 = línea digital perfecta.</p>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>4 · Sombreado</h2>
+
+    <div class="ctrl">
+      <span class="etiqueta">Técnica</span>
+      <div class="segmentos" id="segTrama">
+        <button data-trama="achurado" class="activo">Achurado</button>
+        <button data-trama="puntos">Puntos</button>
+        <button data-trama="lineas">Líneas</button>
+        <button data-trama="ninguna">Ninguna</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <span class="etiqueta">Finura</span>
+      <div class="segmentos" id="segLPI">
+        <button data-lpi="30">30 L</button>
+        <button data-lpi="45">45 L</button>
+        <button data-lpi="60" class="activo">60 L</button>
+      </div>
+      <p class="nota">En la exportación la trama se calcula con el dpi real del formato (ej.: 60 L a 300 dpi = punto de 5 px exactos), sin reescalados que generen moiré.</p>
+    </div>
+
+    <div class="ctrl">
+      <span class="etiqueta">Escala de grises</span>
+      <div class="segmentos" id="segEscala">
+        <button data-escala="t3" class="activo">3 tonos</button>
+        <button data-escala="t4">4 tonos</button>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <div class="fila"><label for="rBlancos">Zonas blancas</label><output id="oBlancos">35</output></div>
+      <input type="range" id="rBlancos" min="0" max="60" value="35">
+    </div>
+
+    <label class="check"><input type="checkbox" id="chkNegro" checked> Sombra más oscura en negro sólido</label>
+  </div>
+
+  <div class="bloque">
+    <h2>5 · Foto base</h2>
+    <div class="ctrl">
+      <div class="fila"><label for="rContraste">Contraste</label><output id="oContraste">20</output></div>
+      <input type="range" id="rContraste" min="-50" max="80" value="20">
+    </div>
+    <div class="ctrl">
+      <div class="fila"><label for="rBrillo">Brillo</label><output id="oBrillo">8</output></div>
+      <input type="range" id="rBrillo" min="-60" max="60" value="8">
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>6 · Exportación</h2>
+    <div class="ctrl">
+      <span class="etiqueta">Formato de salida</span>
+      <div class="segmentos" id="segFormato">
+        <button data-formato="web" class="activo">Web</button>
+        <button data-formato="a5">A5 · 300dpi</button>
+        <button data-formato="a4">A4 · 300dpi</button>
+      </div>
+      <p class="nota">A5 y A4 generan el PNG al tamaño físico real de impresión. A4 puede tardar hasta un minuto en el teléfono.</p>
+    </div>
+    <label class="check"><input type="checkbox" id="chkAzul"> Boceto azul para entintar encima (método Asano)</label>
+    <p class="nota">Exporta solo las líneas en azul claro no-fotográfico: imprímelo o impórtalo a Clip Studio y entinta sobre él con tu G-pen, como hace Inio Asano con sus fotos procesadas.</p>
+  </div>
+
+  <div class="acciones">
+    <button class="btn sec" id="btnOriginal" disabled>Ver foto original (mantener)</button>
+    <button class="btn" id="btnExportar" disabled>Descargar PNG</button>
+  </div>
+
+</aside>
+
+<main>
+  <div class="viñeta">
+    <div id="vacio">
+      <div class="kanji">背景</div>
+      <p>Tu viñeta aparecerá aquí.<br>Empieza subiendo una foto del lugar que quieres dibujar.</p>
+    </div>
+    <canvas id="lienzo" hidden></canvas>
+  </div>
+  <div class="barra-lienzo" id="barra" hidden>
+    <button class="mini" id="btnRotar">↻ Rotar 90°</button>
+    <button class="mini" id="btnOtra">Cambiar foto</button>
+  </div>
+  <p id="estado"></p>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const S = {
+  img:null, rot:0,
+  motor:'tinta',
+  linea:70, grosor:1, textura:45,
+  lpi:60, escala:'t3',
+  tipoTrama:'achurado',
+  blancos:35,
+  negroSolido:true,
+  contraste:20, brillo:8,
+  formato:'web',
+  azul:false,
+};
+
+const ESCALAS = {
+  t3: [0, 0.20, 0.50, 1],
+  t4: [0, 0.10, 0.30, 0.50, 1],
+};
+
+/* formatos de salida: lado mayor en px y en pulgadas → define el dpi real */
+const FORMATOS = {
+  web: {px:2000, pulgadas:6.67,  nombre:'Web 2000px'},
+  a5:  {px:2480, pulgadas:8.27,  nombre:'A5 300dpi'},   /* 8.27in × 300 = 2480 */
+  a4:  {px:3508, pulgadas:11.69, nombre:'A4 300dpi'},   /* 11.69in × 300 = 3508 */
+};
+
+const PRESETS = {
+  pluma:    {motor:'tinta',    linea:70, grosor:1, textura:45, lpi:60, escala:'t3', tipoTrama:'achurado', blancos:35, negroSolido:true,  contraste:20, brillo:8},
+  shonen:   {motor:'tinta',    linea:55, grosor:2, textura:30, lpi:60, escala:'t3', tipoTrama:'puntos',   blancos:15, negroSolido:true,  contraste:15, brillo:0},
+  fino:     {motor:'tinta',    linea:68, grosor:1, textura:25, lpi:60, escala:'t4', tipoTrama:'puntos',   blancos:20, negroSolido:false, contraste:5,  brillo:5},
+  duro:     {motor:'contorno', linea:42, grosor:3, textura:20, lpi:30, escala:'t3', tipoTrama:'ninguna',  blancos:10, negroSolido:true,  contraste:45, brillo:0},
+  nocturno: {motor:'tinta',    linea:58, grosor:2, textura:40, lpi:45, escala:'t4', tipoTrama:'lineas',   blancos:0,  negroSolido:true,  contraste:25, brillo:-25},
+  boceto:   {motor:'tinta',    linea:78, grosor:0, textura:60, lpi:60, escala:'t4', tipoTrama:'achurado', blancos:50, negroSolido:false, contraste:10, brillo:15},
+};
+
+const $ = id => document.getElementById(id);
+const lienzo = $('lienzo');
+const SIGMA_REF = 1300;   /* resolución de referencia para escalar sigmas */
+
+/* ---------- ruido de valor (textura G-pen) ---------- */
+const RUIDO_N = 64;
+const ruidoTabla = new Float32Array(RUIDO_N * RUIDO_N);
+(function sembrar(){
+  let s = 12345;
+  for(let i=0; i<ruidoTabla.length; i++){
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    ruidoTabla[i] = (s / 0x7fffffff);
+  }
+})();
+function ruido(x, y){
+  /* interpolación bilineal con envoltura: ruido suave y estable */
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const fx = x - xi, fy = y - yi;
+  const x0 = ((xi % RUIDO_N) + RUIDO_N) % RUIDO_N;
+  const y0 = ((yi % RUIDO_N) + RUIDO_N) % RUIDO_N;
+  const x1 = (x0 + 1) % RUIDO_N, y1 = (y0 + 1) % RUIDO_N;
+  const a = ruidoTabla[y0*RUIDO_N+x0], b = ruidoTabla[y0*RUIDO_N+x1];
+  const c = ruidoTabla[y1*RUIDO_N+x0], dd = ruidoTabla[y1*RUIDO_N+x1];
+  const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy);
+  return a + (b-a)*ux + (c-a)*uy + (a-b-c+dd)*ux*uy;
+}
+
+/* ---------- carga ---------- */
+const drop = $('drop'), file = $('file');
+drop.addEventListener('click', () => file.click());
+drop.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();} });
+$('btnOtra').addEventListener('click', () => file.click());
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => {e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) cargar(f); });
+file.addEventListener('change', () => { if(file.files[0]) cargar(file.files[0]); });
+
+function cargar(f){
+  if(!f.type.startsWith('image/')){ estado('El archivo no es una imagen.'); return; }
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    S.img = img; S.rot = 0;
+    $('vacio').hidden = true; lienzo.hidden = false; $('barra').hidden = false;
+    $('btnExportar').disabled = false; $('btnOriginal').disabled = false;
+    procesar();
+  };
+  img.onerror = () => estado('No se pudo leer la imagen.');
+  img.src = url;
+}
+
+/* ---------- controles ---------- */
+function liga(idRange, idOut, clave){
+  const r = $(idRange), o = $(idOut);
+  r.addEventListener('input', () => { S[clave] = +r.value; o.textContent = r.value; pedirProceso(); });
+}
+liga('rLinea','oLinea','linea');
+liga('rGrosor','oGrosor','grosor');
+liga('rTextura','oTextura','textura');
+liga('rBlancos','oBlancos','blancos');
+liga('rContraste','oContraste','contraste');
+liga('rBrillo','oBrillo','brillo');
+$('chkNegro').addEventListener('change', e => { S.negroSolido = e.target.checked; pedirProceso(); });
+$('chkAzul').addEventListener('change', e => { S.azul = e.target.checked; });
+
+function segmento(idCont, attr, clave, convertir, reprocesa){
+  document.querySelectorAll('#'+idCont+' button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#'+idCont+' button').forEach(x => x.classList.remove('activo'));
+      b.classList.add('activo');
+      S[clave] = convertir ? convertir(b.dataset[attr]) : b.dataset[attr];
+      if(reprocesa !== false) pedirProceso();
+    });
+  });
+}
+segmento('segMotor','motor','motor');
+segmento('segLPI','lpi','lpi', v => +v);
+segmento('segEscala','escala','escala');
+segmento('segTrama','trama','tipoTrama');
+segmento('segFormato','formato','formato', null, false);
+
+document.querySelectorAll('.presets button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.presets button').forEach(x => x.classList.remove('activo'));
+    b.classList.add('activo');
+    aplicarPreset(PRESETS[b.dataset.preset]);
+  });
+});
+
+function marcarSegmento(idCont, attr, valor){
+  document.querySelectorAll('#'+idCont+' button').forEach(x =>
+    x.classList.toggle('activo', x.dataset[attr] == valor));
+}
+function aplicarPreset(p){
+  Object.assign(S, p);
+  [['rLinea','oLinea','linea'],['rGrosor','oGrosor','grosor'],['rTextura','oTextura','textura'],
+   ['rBlancos','oBlancos','blancos'],['rContraste','oContraste','contraste'],['rBrillo','oBrillo','brillo']].forEach(([r,o,k]) => {
+    $(r).value = p[k]; $(o).textContent = p[k];
+  });
+  $('chkNegro').checked = p.negroSolido;
+  marcarSegmento('segMotor','motor',p.motor);
+  marcarSegmento('segLPI','lpi',p.lpi);
+  marcarSegmento('segEscala','escala',p.escala);
+  marcarSegmento('segTrama','trama',p.tipoTrama);
+  pedirProceso();
+}
+
+$('btnRotar').addEventListener('click', () => { S.rot = (S.rot + 90) % 360; pedirProceso(); });
+
+const btnOrig = $('btnOriginal');
+let mostrandoOriginal = false;
+function verOriginal(on){
+  if(!S.img || on === mostrandoOriginal) return;
+  mostrandoOriginal = on;
+  if(on){ dibujarOriginal(); } else { procesar(); }
+}
+['mousedown','touchstart'].forEach(ev => btnOrig.addEventListener(ev, e => {e.preventDefault();verOriginal(true);}));
+['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btnOrig.addEventListener(ev, () => verOriginal(false)));
+
+let timer = null;
+function pedirProceso(){
+  if(!S.img) return;
+  clearTimeout(timer);
+  timer = setTimeout(procesar, 60);
+}
+
+/* reprocesar al cambiar tamaño/orientación: la vista previa siempre es 1:1 con el dispositivo */
+let timerResize = null;
+window.addEventListener('resize', () => {
+  if(!S.img) return;
+  clearTimeout(timerResize);
+  timerResize = setTimeout(procesar, 250);
+});
+
+/* ---------- medidas ---------- */
+function aspecto(){
+  let w = S.img.naturalWidth, h = S.img.naturalHeight;
+  if(S.rot % 180 !== 0) [w,h] = [h,w];
+  return w / h;
+}
+
+/* la vista previa se procesa EXACTAMENTE al tamaño mostrado × devicePixelRatio.
+   Así no hay reescalado del navegador y por lo tanto no hay moiré en pantalla. */
+function medidasPreview(){
+  const asp = aspecto();
+  const main = document.querySelector('main');
+  const disponible = Math.min(700, (main ? main.clientWidth : window.innerWidth) - 64);
+  let cssW = disponible, cssH = cssW / asp;
+  const altoMax = window.innerHeight * 0.75;
+  if(cssH > altoMax){ cssH = altoMax; cssW = cssH * asp; }
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  return {
+    w: Math.round(cssW * dpr),
+    h: Math.round(cssH * dpr),
+    cssW: Math.round(cssW),
+    cssH: Math.round(cssH),
+  };
+}
+
+function medidasExport(){
+  const fmt = FORMATOS[S.formato];
+  const asp = aspecto();
+  let w, h;
+  if(asp >= 1){ w = fmt.px; h = Math.round(fmt.px / asp); }
+  else        { h = fmt.px; w = Math.round(fmt.px * asp); }
+  return {w, h, pulgadas: fmt.pulgadas};
+}
+
+function dibujarFuente(c, w, h){
+  const cx = c.getContext('2d', {willReadFrequently:true});
+  cx.save();
+  cx.translate(w/2, h/2);
+  cx.rotate(S.rot * Math.PI/180);
+  const iw = (S.rot % 180 !== 0) ? h : w;
+  const ih = (S.rot % 180 !== 0) ? w : h;
+  cx.drawImage(S.img, -iw/2, -ih/2, iw, ih);
+  cx.restore();
+  return cx;
+}
+
+function dibujarOriginal(){
+  const m = medidasPreview();
+  lienzo.width = m.w; lienzo.height = m.h;
+  lienzo.style.width = m.cssW + 'px';
+  lienzo.style.height = m.cssH + 'px';
+  dibujarFuente(lienzo, m.w, m.h);
+}
+
+function procesar(){
+  if(!S.img) return;
+  const t0 = performance.now();
+  const m = medidasPreview();
+  lienzo.width = m.w; lienzo.height = m.h;
+  lienzo.style.width = m.cssW + 'px';
+  lienzo.style.height = m.cssH + 'px';
+  renderManga(lienzo, m.w, m.h, FORMATOS[S.formato].pulgadas, false);
+  estado(`Vista 1:1 sin moiré · ${m.w}×${m.h}px · ${Math.round(performance.now()-t0)} ms · la trama final se calcula al exportar (${FORMATOS[S.formato].nombre})`);
+}
+
+/* ---------- desenfoque gaussiano separable ---------- */
+function gaussiana(src, w, h, sigma){
+  const r = Math.max(1, Math.ceil(sigma * 2.5));
+  const k = new Float32Array(2*r+1);
+  let suma = 0;
+  for(let i=-r; i<=r; i++){ k[i+r] = Math.exp(-(i*i)/(2*sigma*sigma)); suma += k[i+r]; }
+  for(let i=0; i<k.length; i++) k[i] /= suma;
+
+  const tmp = new Float32Array(w*h);
+  const out = new Float32Array(w*h);
+  for(let y=0; y<h; y++){
+    const fila = y*w;
+    for(let x=0; x<w; x++){
+      let s = 0;
+      for(let i=-r; i<=r; i++){
+        let xx = x+i; if(xx<0) xx=0; else if(xx>=w) xx=w-1;
+        s += src[fila+xx] * k[i+r];
+      }
+      tmp[fila+x] = s;
+    }
+  }
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      let s = 0;
+      for(let i=-r; i<=r; i++){
+        let yy = y+i; if(yy<0) yy=0; else if(yy>=h) yy=h-1;
+        s += tmp[yy*w+x] * k[i+r];
+      }
+      out[y*w+x] = s;
+    }
+  }
+  return out;
+}
+
+function rayado(x, y, ang, celda, grueso, semilla){
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const u = (x*c + y*s) / celda;
+  let v = (-x*s + y*c) / celda;
+  v += 0.10 * Math.sin(u * 1.7 + semilla);
+  const f = v - Math.floor(v);
+  return Math.abs(f - 0.5) < grueso/2;
+}
+
+/* ---------- núcleo: foto → manga ---------- */
+function renderManga(canvas, w, h, pulgadas, esExport){
+  const cx = dibujarFuente(canvas, w, h);
+  const src = cx.getImageData(0, 0, w, h);
+  const d = src.data;
+  const n = w * h;
+  const escRes = Math.max(w,h) / SIGMA_REF;
+  const tex = S.textura / 100;                 /* 0..1: cuánta irregularidad de plumilla */
+  const escRuido = 1 / (9 * escRes);           /* escala espacial del grano del papel */
+
+  /* 1) grises + brillo/contraste */
+  const gris = new Float32Array(n);
+  const fc = (259 * (S.contraste + 255)) / (255 * (259 - S.contraste));
+  for(let i=0, p=0; i<n; i++, p+=4){
+    let g = d[p]*0.299 + d[p+1]*0.587 + d[p+2]*0.114;
+    g = fc * (g - 128) + 128 + S.brillo;
+    gris[i] = g < 0 ? 0 : (g > 255 ? 255 : g);
+  }
+
+  /* 2) línea de tinta con textura G-pen:
+     el umbral se modula con ruido suave → el trazo se corta, adelgaza y
+     engruesa de forma orgánica; los bordes fuertes reciben más peso
+     (como la presión de una plumilla G). */
+  let linea = new Uint8Array(n);
+  let fuerte = new Uint8Array(n);
+
+  if(S.motor === 'tinta'){
+    const sigma = (0.65 + S.grosor * 0.40) * escRes;
+    const g1 = gaussiana(gris, w, h, sigma);
+    const g2 = gaussiana(gris, w, h, sigma * 1.6);
+    const tau = 1.0 + (100 - S.linea) * 0.15;
+    const umbralC = 60 + (100 - S.linea) * 1.4;
+
+    for(let y=0; y<h; y++){
+      for(let x=0; x<w; x++){
+        const i = y*w + x;
+        const mod = 1 + tex * 0.9 * (ruido(x*escRuido, y*escRuido) - 0.35);
+        const ti = tau * mod;
+        const resp = g2[i] - g1[i];           /* positivo sobre la línea */
+        if(resp > ti){
+          linea[i] = 1;
+          if(resp > ti * 2.3) fuerte[i] = 1;  /* zona de presión: trazo grueso */
+        }
+      }
+    }
+    /* contornos firmes (Sobel sobre g1), también modulados por el grano */
+    for(let y=1; y<h-1; y++){
+      const r0=(y-1)*w, r1=y*w, r2=(y+1)*w;
+      for(let x=1; x<w-1; x++){
+        const gx = -g1[r0+x-1] - 2*g1[r1+x-1] - g1[r2+x-1]
+                  + g1[r0+x+1] + 2*g1[r1+x+1] + g1[r2+x+1];
+        const gy = -g1[r0+x-1] - 2*g1[r0+x] - g1[r0+x+1]
+                  + g1[r2+x-1] + 2*g1[r2+x] + g1[r2+x+1];
+        const mag2 = gx*gx + gy*gy;
+        const mod = 1 + tex * 0.8 * (ruido(x*escRuido + 31, y*escRuido + 17) - 0.35);
+        const u = umbralC * mod;
+        if(mag2 > u*u){
+          linea[r1+x] = 1;
+          if(mag2 > u*u*4) fuerte[r1+x] = 1;
+        }
+      }
+    }
+  } else {
+    const suave = gaussiana(gris, w, h, 1.0 * escRes);
+    const umbral = 28 + (100 - S.linea) * 2.1;
+    for(let y=1; y<h-1; y++){
+      const r0=(y-1)*w, r1=y*w, r2=(y+1)*w;
+      for(let x=1; x<w-1; x++){
+        const gx = -suave[r0+x-1] - 2*suave[r1+x-1] - suave[r2+x-1]
+                  + suave[r0+x+1] + 2*suave[r1+x+1] + suave[r2+x+1];
+        const gy = -suave[r0+x-1] - 2*suave[r0+x] - suave[r0+x+1]
+                  + suave[r2+x-1] + 2*suave[r2+x] + suave[r2+x+1];
+        const mag2 = gx*gx + gy*gy;
+        const mod = 1 + tex * 0.8 * (ruido(x*escRuido, y*escRuido) - 0.35);
+        const u = umbral * mod;
+        if(mag2 > u*u){
+          linea[r1+x] = 1;
+          if(mag2 > u*u*4) fuerte[r1+x] = 1;
+        }
+      }
+    }
+  }
+
+  /* dilatación: base según grosor + 1 pase extra solo en zonas de presión */
+  function dilatar(mascara, guia){
+    const amp = new Uint8Array(mascara);
+    for(let y=1; y<h-1; y++){
+      for(let x=1; x<w-1; x++){
+        const i = y*w+x;
+        if(mascara[i]) continue;
+        if(guia[i-1]||guia[i+1]||guia[i-w]||guia[i+w]) amp[i] = 1;
+      }
+    }
+    return amp;
+  }
+  const basePases = Math.round((S.motor==='tinta' ? S.grosor*0.4 : S.grosor) * escRes);
+  for(let p=0; p<basePases; p++) linea = dilatar(linea, linea);
+  const pasesFuerte = Math.max(1, Math.round(escRes * 0.8));
+  for(let p=0; p<pasesFuerte; p++){
+    const ampliado = dilatar(linea, fuerte);
+    fuerte = dilatar(fuerte, fuerte);
+    linea = ampliado;
+  }
+
+  /* 3) sombreado: trama calculada con el dpi REAL del lienzo actual.
+     Como la vista previa es 1:1 con el dispositivo y la exportación se genera
+     directamente al tamaño final, los puntos nunca se reescalan → sin moiré. */
+  let pasos = ESCALAS[S.escala].slice();
+  if(!S.negroSolido) pasos[pasos.length-1] = 0.7;
+  const bandas = pasos.length;
+  const corte = S.blancos / 100;
+
+  const ppi = Math.max(w,h) / pulgadas;
+  const celda = Math.max(3, ppi / S.lpi);
+  const celdaHach = celda * 1.5;
+  const cos45 = Math.SQRT1_2, sin45 = Math.SQRT1_2;
+  const tipo = S.tipoTrama;
+  const base = gaussiana(gris, w, h, 1.2 * escRes);
+  const A1 = Math.PI/4, A2 = -Math.PI/4, A3 = 0;
+  const soloLineas = esExport && S.azul;       /* boceto azul: sin sombreado */
+
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      const i = y*w + x, p = i*4;
+      let negro = false;
+
+      if(linea[i]){
+        negro = true;
+      } else if(!soloLineas){
+        let cob = 1 - base[i]/255;
+        cob = (cob - corte) / (1 - corte);
+        if(cob < 0) cob = 0;
+
+        let banda = Math.floor(cob * bandas);
+        if(banda >= bandas) banda = bandas - 1;
+        const dens = pasos[banda];
+
+        if(dens === 0){
+          negro = false;
+        } else if(dens === 1){
+          negro = true;
+        } else if(tipo === 'achurado'){
+          if(dens <= 0.22){
+            negro = rayado(x,y,A1,celdaHach,Math.min(0.5,dens*1.6),0);
+          } else if(dens <= 0.45){
+            negro = rayado(x,y,A1,celdaHach,dens*0.85,0)
+                 || rayado(x,y,A2,celdaHach,dens*0.85,2.1);
+          } else {
+            negro = rayado(x,y,A1,celdaHach,dens*0.75,0)
+                 || rayado(x,y,A2,celdaHach,dens*0.75,2.1)
+                 || rayado(x,y,A3,celdaHach,dens*0.6,4.4);
+          }
+        } else if(tipo === 'puntos'){
+          const u = (x*cos45 + y*sin45) / celda;
+          const v = (-x*sin45 + y*cos45) / celda;
+          const fu = u - Math.floor(u) - 0.5;
+          const fv = v - Math.floor(v) - 0.5;
+          negro = (fu*fu + fv*fv) / 0.5 < dens;
+        } else if(tipo === 'lineas'){
+          const v = (-x*sin45 + y*cos45) / celda;
+          const f = v - Math.floor(v);
+          negro = Math.abs(f - 0.5) < dens/2;
+        } else {
+          negro = dens > 0.45;
+        }
+      }
+
+      if(soloLineas){
+        /* azul no-fotográfico para entintar encima */
+        if(negro){ d[p]=140; d[p+1]=175; d[p+2]=215; }
+        else     { d[p]=255; d[p+1]=255; d[p+2]=255; }
+      } else {
+        const val = negro ? 18 : 255;
+        d[p] = d[p+1] = d[p+2] = val;
+      }
+      d[p+3] = 255;
+    }
+  }
+
+  cx.putImageData(src, 0, 0);
+}
+
+/* ---------- exportar ---------- */
+$('btnExportar').addEventListener('click', () => {
+  if(!S.img) return;
+  const fmt = FORMATOS[S.formato];
+  estado(`Generando PNG ${fmt.nombre}… puede tardar en formatos grandes, no cierres la pestaña.`);
+  setTimeout(() => {
+    const m = medidasExport();
+    const off = document.createElement('canvas');
+    off.width = m.w; off.height = m.h;
+    renderManga(off, m.w, m.h, m.pulgadas, true);
+    off.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = S.azul ? 'fondo-manga-boceto-azul.png' : 'fondo-manga.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      const dpi = Math.round(m.w > m.h ? m.w/m.pulgadas : m.h/m.pulgadas);
+      estado(`PNG exportado · ${m.w}×${m.h}px · ${dpi} dpi · trama ${S.lpi}L (celda de ${Math.round(dpi/S.lpi)}px)`);
+    }, 'image/png');
+  }, 50);
+});
+
+function estado(txt){ $('estado').textContent = txt; }
+
+})();
+</script>
+</body>
+</html>
