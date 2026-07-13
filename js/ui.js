@@ -11,6 +11,10 @@ const CHECKBOX_IDS = [
   'showSecondaryLine',
   'showFineDetail',
   'blueSketch',
+  'grayscaleEnabled',
+  'shadowsEnabled',
+  'vegetationEnabled',
+  'lightsEnabled',
 ];
 
 export function initControls(settings, callbacks) {

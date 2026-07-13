@@ -11,7 +11,7 @@
   <header class="topbar">
     <div>
       <h1>Fondo <span>マンガ</span> Manga <small>v5</small></h1>
-      <p>Fondos manga por capas: líneas jerárquicas, masas negras, blancos reservados y exportación local.</p>
+      <p>Mesa de trabajo por etapas para preparar, separar y construir una base de dibujo manga.</p>
     </div>
     <div class="status-pill" id="workerStatus">Motor listo</div>
   </header>
@@ -38,10 +38,10 @@
 
       <section class="panel tabs-panel">
         <div class="tabs" role="tablist">
-          <button class="active" data-tab="principal" type="button">Imagen</button>
-          <button data-tab="linea" type="button">Línea</button>
-          <button data-tab="tonos" type="button">Tonos</button>
-          <button data-tab="regiones" type="button">Regiones</button>
+          <button class="active" data-tab="principal" type="button">1 Preparación</button>
+          <button data-tab="regiones" type="button">2 Máscaras</button>
+          <button data-tab="linea" type="button">3 Líneas</button>
+          <button data-tab="tonos" type="button">4 Tonos</button>
         </div>
 
         <div class="tab-page active" id="tab-principal">
@@ -57,6 +57,11 @@
           <div class="control" data-key="value"></div>
           <div class="control" data-key="brightness"></div>
           <div class="control" data-key="contrast"></div>
+          <div class="control" data-key="blackPoint"></div>
+          <div class="control" data-key="whitePoint"></div>
+          <div class="control" data-key="gamma"></div>
+          <div class="control" data-key="grayscaleMix"></div>
+          <label class="check"><input id="grayscaleEnabled" type="checkbox"> Conversión a grises</label>
           <div class="control" data-key="detail"></div>
           <div class="control" data-key="cleanup"></div>
         </div>
@@ -68,6 +73,8 @@
           <div class="control" data-key="secondaryLineWeight"></div>
           <div class="control" data-key="fineDetail"></div>
           <div class="control" data-key="fineDetailWeight"></div>
+          <div class="control" data-key="lineSimplify"></div>
+          <div class="control" data-key="lineConnect"></div>
           <div class="control" data-key="edgeContinuity"></div>
           <div class="control" data-key="farDetail"></div>
           <label class="check"><input id="showMainLine" type="checkbox"> Mostrar línea principal</label>
@@ -84,6 +91,11 @@
           <div class="control" data-key="toneCount"></div>
           <div class="control" data-key="transitionHardness"></div>
           <div class="control" data-key="texture"></div>
+          <div class="control" data-key="posterization"></div>
+          <div class="control" data-key="thresholdMix"></div>
+          <div class="control" data-key="shadowCompression"></div>
+          <div class="control" data-key="regionMerge"></div>
+          <label class="check"><input id="shadowsEnabled" type="checkbox"> Capa de sombras profundas</label>
           <label class="field">
             <span>Trama</span>
             <select id="textureMode"></select>
@@ -99,6 +111,13 @@
             <label class="check"><input id="organicRegions" type="checkbox"> Detectar textura orgánica</label>
             <label class="check"><input id="waterClean" type="checkbox"> Agua limpia con líneas horizontales</label>
             <label class="check"><input id="preserveLightTrails" type="checkbox"> Conservar luces y estelas</label>
+            <label class="check"><input id="vegetationEnabled" type="checkbox"> Máscara de vegetación</label>
+            <label class="check"><input id="lightsEnabled" type="checkbox"> Máscara de luces</label>
+            <div class="control" data-key="skyInfluence"></div>
+            <div class="control" data-key="architectureInfluence"></div>
+            <div class="control" data-key="waterInfluence"></div>
+            <div class="control" data-key="vegetationInfluence"></div>
+            <div class="control" data-key="perspectiveStrength"></div>
             <label class="check"><input id="blueSketch" type="checkbox"> Boceto azul no fotográfico</label>
           </details>
         </div>
