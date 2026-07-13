@@ -54,7 +54,7 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
-function makeZip(files) {
+export function makeZip(files) {
   const encoder = new TextEncoder();
   const localParts = [];
   const centralParts = [];
@@ -67,14 +67,15 @@ function makeZip(files) {
     const view = new DataView(local.buffer);
     view.setUint32(0, 0x04034b50, true);
     view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
     view.setUint16(8, 0, true);
-    view.setUint16(10, 0, true);
-    view.setUint16(12, dosTime(), true);
-    view.setUint16(14, dosDate(), true);
-    view.setUint32(16, crc, true);
-    view.setUint32(20, bytes.length, true);
-    view.setUint32(24, bytes.length, true);
-    view.setUint16(28, nameBytes.length, true);
+    view.setUint16(10, dosTime(), true);
+    view.setUint16(12, dosDate(), true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, bytes.length, true);
+    view.setUint32(22, bytes.length, true);
+    view.setUint16(26, nameBytes.length, true);
+    view.setUint16(28, 0, true);
     local.set(nameBytes, 30);
     localParts.push(local, bytes);
 
@@ -83,13 +84,13 @@ function makeZip(files) {
     cv.setUint32(0, 0x02014b50, true);
     cv.setUint16(4, 20, true);
     cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true);
     cv.setUint16(10, 0, true);
-    cv.setUint16(12, 0, true);
-    cv.setUint16(14, dosTime(), true);
-    cv.setUint16(16, dosDate(), true);
-    cv.setUint32(18, crc, true);
-    cv.setUint32(22, bytes.length, true);
-    cv.setUint32(26, bytes.length, true);
+    cv.setUint16(12, dosTime(), true);
+    cv.setUint16(14, dosDate(), true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, bytes.length, true);
+    cv.setUint32(24, bytes.length, true);
     cv.setUint16(28, nameBytes.length, true);
     cv.setUint32(42, offset, true);
     central.set(nameBytes, 46);
