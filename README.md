@@ -22,13 +22,13 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 1. `index.html` carga la interfaz estática.
 2. `js/app.js` coordina carga de imagen, estado, previews y exportación.
 3. `js/worker.js` recibe `ImageData` y ejecuta el pipeline en segundo plano.
-4. El renderer modular procesa:
-   - escala de grises y reducción de ruido;
-   - clasificación heurística de regiones;
-   - líneas multiescala separadas en principal, secundaria y detalle fino;
-   - simplificación tonal;
-   - tramas localizadas;
-   - composición de capas.
+4. El renderer modular ejecuta etapas explícitas:
+   - preparación con valor, brillo, contraste, niveles, puntos negro/blanco y gamma;
+   - máscaras heurísticas de cielo, arquitectura, agua, vegetación, luces y sombras;
+   - extracción multiescala de línea principal, secundaria y detalle fino;
+   - limpieza morfológica, conexión de huecos y preservación geométrica;
+   - tonos suaves, sombras profundas y negros sólidos como capas distintas;
+   - composición y exportación de capas.
 
 ## Estructura
 
@@ -46,6 +46,7 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 │   ├── worker.js
 │   └── renderer/
 │       ├── edges.js
+│       ├── line-cleanup.js
 │       ├── manga-renderer.js
 │       ├── preprocess.js
 │       ├── regions.js
@@ -57,7 +58,7 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 
 ## Uso
 
-Abre `index.html` desde un servidor estático, carga una imagen JPG, PNG o WebP, elige un preset y ajusta los controles principales. El comparador permite ver original y resultado con un deslizador.
+Abre `index.html` desde un servidor estático, carga una imagen JPG, PNG o WebP y recorre las pestañas numeradas. El selector **Capa** permite inspeccionar preparación, líneas, sombras y máscaras antes de exportar.
 
 ## GitHub Pages
 
@@ -83,8 +84,11 @@ Mientras se revisa la v5, se puede probar desde la rama `codex/fondo-manga-v5`.
 - Valor: desplaza la interpretación tonal antes de líneas y sombras.
 - Brillo: aclara u oscurece luminancia general.
 - Contraste: separa tonos y afecta detección de líneas.
+- Punto negro, punto blanco y gamma: controlan niveles antes de cualquier extracción.
+- Mezcla blanco y negro: ajusta la conversión perceptual a grises.
 - Detalle: cantidad general de línea fina.
 - Limpieza: reducción de ruido y eliminación de pequeñas marcas.
+- Simplificación y conexión: eliminan segmentos irrelevantes y unen huecos pequeños.
 - Línea principal: intensidad y grosor de contornos/siluetas.
 - Línea secundaria: intensidad y grosor de divisiones internas, molduras, ventanas y estructura media.
 - Detalle fino: intensidad y grosor de microdetalle opcional.
@@ -93,11 +97,14 @@ Mientras se revisa la v5, se puede probar desde la rama `codex/fondo-manga-v5`.
 - Cobertura de negro: límite aproximado de píxeles que pueden convertirse en negro sólido.
 - Detalle lejano: reduce información visual en el fondo.
 - Suavidad tonal: evita posterización agresiva.
+- Posterización y threshold: herramientas opcionales de tonos, no el centro del pipeline.
+- Compresión de negros: lleva sombras hacia grises para evitar bloques empastados.
 - Textura: intensidad de tramas y grano.
 - Trama: puntos, líneas, cruzada, orgánica, concreto, vegetal o ninguna.
 
 ## Presets
 
+- Flujo tipo Clip Studio (modo principal por etapas).
 - Base para entintado.
 - Urbano limpio.
 - Urbano dramático.
@@ -118,11 +125,15 @@ fondo-manga-proyecto.zip
 ├── 02_linea-principal.png
 ├── 03_linea-secundaria.png
 ├── 04_detalle-fino.png
-├── 05_masas-negras.png
-├── 06_tonos.png
-├── 07_texturas.png
-├── 08_boceto-azul.png
-├── 09_original-ajustado.png
+├── 05_sombras.png
+├── 06_masas-negras.png
+├── 07_tonos.png
+├── 08_texturas.png
+├── 09_boceto-azul.png
+├── 10_original-ajustado.png
+├── 11_mascara-cielo.png
+├── 12_mascara-arquitectura.png
+├── 13_mascara-agua.png
 └── configuracion.json
 ```
 
@@ -134,7 +145,7 @@ Diseñado para Chrome, Edge, Safari y Firefox recientes. Requiere soporte de Can
 
 ## Limitaciones
 
-- La detección de cielo, arquitectura, vegetación, agua y profundidad es heurística; no usa IA remota.
+- La detección de cielo, arquitectura, vegetación, agua y profundidad es heurística; los controles de influencia permiten corregir su alcance, pero todavía no existe pintura manual de máscaras por pincel.
 - La exportación A4 600 dpi puede ser demasiado pesada en móviles o imágenes casi cuadradas; la app bloquea tamaños estimados excesivos y sugiere alternativas.
 - La clasificación de ventanas, fachadas y detalles repetitivos todavía es aproximada.
 - El ZIP usa almacenamiento sin compresión para evitar dependencias externas.
@@ -143,7 +154,7 @@ Diseñado para Chrome, Edge, Safari y Firefox recientes. Requiere soporte de Can
 ## Hoja de ruta
 
 - Procesamiento por bloques reales para exportaciones muy grandes.
-- Máscaras manuales para cielo, vegetación y primer plano.
+- Pintura manual de máscaras para cielo, vegetación y primer plano.
 - Mejora de continuidad de líneas arquitectónicas.
 - Previsualización progresiva mientras se arrastran sliders.
 - Suite de pruebas visuales con imágenes de referencia.
