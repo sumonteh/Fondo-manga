@@ -1,12 +1,14 @@
 # Fondo Manga v5
 
-Fondo Manga v5 transforma fotografías o renders 3D en bases de dibujo manga en blanco y negro desde el navegador. La versión v5 prioriza una interpretación lineal y editable: menos masas negras, más estructura arquitectónica, línea principal/secundaria/detalle fino separados y exportación por capas para continuar el trabajo en Clip Studio Paint o a mano.
+Fondo Manga v5 prepara fotografías o renders para un flujo manga por etapas desde el navegador. El modo recomendado mantiene primero una imagen tonal editable: **grises → monocromático opcional → threshold → trama 60L**. La extracción automática de líneas se conserva como modo experimental.
 
 ## Objetivos
 
 - Conservar perspectiva y geometría de la imagen de origen.
 - Reducir ruido fotográfico antes de extraer líneas.
-- Separar líneas principales, secundarias y detalle fino.
+- Mantener intacta una etapa de grises antes de cualquier conversión binaria.
+- Convertir a monocromático y threshold solo cuando el usuario lo decida.
+- Aplicar trama manga 60L únicamente en medios tonos o regiones elegidas.
 - Reservar blancos en cielos y superficies claras.
 - Agrupar sombras en masas negras configurables.
 - Limitar la cobertura de negro para que la arquitectura no colapse.
@@ -24,11 +26,11 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 3. `js/worker.js` recibe `ImageData` y ejecuta el pipeline en segundo plano.
 4. El renderer modular ejecuta etapas explícitas:
    - preparación con valor, brillo, contraste, niveles, puntos negro/blanco y gamma;
-   - máscaras heurísticas de cielo, arquitectura, agua, vegetación, luces y sombras;
-   - extracción multiescala de línea principal, secundaria y detalle fino;
-   - limpieza morfológica, conexión de huecos y preservación geométrica;
-   - tonos suaves, sombras profundas y negros sólidos como capas distintas;
-   - composición y exportación de capas.
+   - escala de grises no destructiva y limpieza;
+   - monocromático controlado opcional;
+   - threshold fino posterior a los grises;
+   - trama 60L localizada por medios tonos o región;
+   - composición y exportación de cada etapa.
 
 ## Estructura
 
@@ -51,6 +53,7 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 │       ├── preprocess.js
 │       ├── regions.js
 │       ├── textures.js
+│       ├── tonal-workflow.js
 │       └── tones.js
 ├── assets/
 └── README.md
@@ -58,7 +61,7 @@ La imagen se procesa en el dispositivo del usuario. No se sube a servidores exte
 
 ## Uso
 
-Abre `index.html` desde un servidor estático, carga una imagen JPG, PNG o WebP y recorre las pestañas numeradas. El selector **Capa** permite inspeccionar preparación, líneas, sombras y máscaras antes de exportar.
+Abre `index.html` desde un servidor estático, carga una imagen JPG, PNG o WebP y recorre las pestañas numeradas: resolución, grises, mono, threshold y trama 60L. El selector **Capa** permite inspeccionar cada resultado intermedio.
 
 ## GitHub Pages
 
@@ -76,7 +79,7 @@ Mientras se revisa la v5, se puede probar desde la rama `codex/fondo-manga-v5`.
 - A5: 300, 450 y 600 dpi.
 - A4: 300, 450 y 600 dpi.
 
-600 dpi aparece como alta resolución y muestra estimación de dimensiones y memoria. La app renderiza directamente al tamaño final seleccionado, sin escalar desde 300 dpi. A4 600 dpi puede superar la memoria disponible según la proporción de la imagen; en ese caso la app muestra un mensaje con alternativas como A5 600 dpi, A4 450 dpi o A4 300 dpi.
+600 dpi aparece como alta resolución y muestra estimación de dimensiones y memoria. La app renderiza directamente al tamaño final seleccionado, sin escalar desde 300 dpi. La celda 60L se calcula como `dpi / 60`: 5 px a 300 dpi, 7,5 px a 450 dpi y 10 px a 600 dpi. A4 600 dpi puede superar la memoria disponible; en ese caso se ofrecen alternativas.
 
 ## Controles principales
 
@@ -104,8 +107,12 @@ Mientras se revisa la v5, se puede probar desde la rama `codex/fondo-manga-v5`.
 
 ## Presets
 
-- Flujo tipo Clip Studio (modo principal por etapas).
+- Base manga por grises (recomendado).
+- Escala de grises.
+- Monocromático controlado.
+- Trama 60L.
 - Base para entintado.
+- Líneas automáticas (experimental).
 - Urbano limpio.
 - Urbano dramático.
 - Seinen detallado.
@@ -121,23 +128,16 @@ La exportación ZIP genera:
 
 ```text
 fondo-manga-proyecto.zip
-├── 01_resultado-final.png
-├── 02_linea-principal.png
-├── 03_linea-secundaria.png
-├── 04_detalle-fino.png
-├── 05_sombras.png
-├── 06_masas-negras.png
-├── 07_tonos.png
-├── 08_texturas.png
-├── 09_boceto-azul.png
-├── 10_original-ajustado.png
-├── 11_mascara-cielo.png
-├── 12_mascara-arquitectura.png
-├── 13_mascara-agua.png
+├── 01_original-ajustado.png
+├── 02_escala-de-grises.png
+├── 03_monocromatico.png
+├── 04_threshold.png
+├── 05_trama-60L.png
+├── 06_resultado-final.png
 └── configuracion.json
 ```
 
-Las capas de línea principal, línea secundaria, detalle fino, masas negras, texturas y boceto azul conservan transparencia.
+Las etapas se calculan desde el mismo original a la resolución final seleccionada. Activar monocromático, threshold o trama no sobrescribe la capa de grises.
 
 ## Compatibilidad
 
