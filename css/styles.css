@@ -268,6 +268,7 @@ input[type="range"]::-moz-range-thumb {
 
 .layer-view { display: flex; align-items: center; gap: 6px; font-size: .78rem; }
 .layer-view select { max-width: 170px; min-height: 34px; }
+.mode-note { margin: 0 0 12px; color: #6a2828; font-size: .8rem; line-height: 1.4; }
 
 .viewer {
   min-height: 0;

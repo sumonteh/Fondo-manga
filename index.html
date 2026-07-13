@@ -38,10 +38,12 @@
 
       <section class="panel tabs-panel">
         <div class="tabs" role="tablist">
-          <button class="active" data-tab="principal" type="button">1 Preparación</button>
-          <button data-tab="regiones" type="button">2 Máscaras</button>
-          <button data-tab="linea" type="button">3 Líneas</button>
-          <button data-tab="tonos" type="button">4 Tonos</button>
+          <button class="active" data-tab="principal" type="button">1 Resolución</button>
+          <button data-tab="grises" type="button">2 Grises</button>
+          <button data-tab="mono" type="button">3 Mono</button>
+          <button data-tab="threshold" type="button">4 Threshold</button>
+          <button data-tab="trama" type="button">5 Trama 60L</button>
+          <button data-tab="linea" type="button">Experimental</button>
         </div>
 
         <div class="tab-page active" id="tab-principal">
@@ -50,10 +52,18 @@
             <select id="sceneType"></select>
           </label>
           <label class="field">
+            <span>Flujo de trabajo</span>
+            <select id="workflowMode"></select>
+          </label>
+          <label class="field">
             <span>Formato de exportación</span>
             <select id="exportFormat"></select>
           </label>
           <div class="estimate" id="exportEstimate">Exportación: Web 2000px</div>
+        </div>
+
+        <div class="tab-page" id="tab-grises">
+          <label class="check"><input id="grayscaleEnabled" type="checkbox"> Mantener conversión a escala de grises</label>
           <div class="control" data-key="value"></div>
           <div class="control" data-key="brightness"></div>
           <div class="control" data-key="contrast"></div>
@@ -61,12 +71,31 @@
           <div class="control" data-key="whitePoint"></div>
           <div class="control" data-key="gamma"></div>
           <div class="control" data-key="grayscaleMix"></div>
-          <label class="check"><input id="grayscaleEnabled" type="checkbox"> Conversión a grises</label>
-          <div class="control" data-key="detail"></div>
           <div class="control" data-key="cleanup"></div>
+          <div class="control" data-key="whiteReserve"></div>
+          <div class="control" data-key="blackCompression"></div>
+        </div>
+
+        <div class="tab-page" id="tab-mono">
+          <label class="check"><input id="monochromeEnabled" type="checkbox"> Activar monocromático sin destruir los grises</label>
+          <div class="control" data-key="thresholdFeather"></div>
+        </div>
+
+        <div class="tab-page" id="tab-threshold">
+          <label class="check"><input id="thresholdEnabled" type="checkbox"> Aplicar threshold al resultado</label>
+          <div class="control" data-key="thresholdValue"></div>
+        </div>
+
+        <div class="tab-page" id="tab-trama">
+          <label class="check"><input id="screen60Enabled" type="checkbox"> Aplicar trama manga 60L</label>
+          <label class="field"><span>Aplicar trama en</span><select id="screenTarget"></select></label>
+          <div class="control" data-key="screenAngle"></div>
+          <div class="estimate" id="screenEstimate">60L · 300 dpi · celda 5 px</div>
         </div>
 
         <div class="tab-page" id="tab-linea">
+          <p class="mode-note">Conversión automática a líneas y tonos. Modo secundario experimental.</p>
+          <div class="control" data-key="detail"></div>
           <div class="control" data-key="mainLine"></div>
           <div class="control" data-key="mainLineWeight"></div>
           <div class="control" data-key="secondaryLine"></div>
@@ -82,8 +111,7 @@
           <label class="check"><input id="showFineDetail" type="checkbox"> Mostrar detalle fino</label>
         </div>
 
-        <div class="tab-page" id="tab-tonos">
-          <div class="control" data-key="whiteReserve"></div>
+        <div class="tab-page" id="tab-tonos" hidden>
           <div class="control" data-key="blackMass"></div>
           <div class="control" data-key="blackCoverageLimit"></div>
           <div class="control" data-key="shadowThreshold"></div>
@@ -102,7 +130,7 @@
           </label>
         </div>
 
-        <div class="tab-page" id="tab-regiones">
+        <div class="tab-page" id="tab-regiones" hidden>
           <details class="advanced" open>
             <summary>Materiales y profundidad</summary>
             <label class="check"><input id="depthEnabled" type="checkbox"> Profundidad vertical</label>
@@ -149,15 +177,10 @@
         <label class="layer-view"><span>Capa</span><select id="layerView">
           <option value="final">Resultado final</option>
           <option value="adjusted">Original ajustado</option>
-          <option value="mainLines">Línea principal</option>
-          <option value="secondaryLines">Línea secundaria</option>
-          <option value="fineDetails">Detalle fino</option>
-          <option value="shadows">Sombras</option>
-          <option value="blacks">Masas negras</option>
-          <option value="tones">Tonos</option>
-          <option value="maskSky">Máscara cielo</option>
-          <option value="maskArchitecture">Máscara arquitectura</option>
-          <option value="maskWater">Máscara agua</option>
+          <option value="grayscale">Escala de grises</option>
+          <option value="monochrome">Monocromático</option>
+          <option value="threshold">Threshold</option>
+          <option value="screen60">Trama 60L</option>
         </select></label>
         <button class="mini" id="fitBtn" type="button">Ajustar</button>
         <button class="mini" id="zoomOut" type="button">-</button>

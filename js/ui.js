@@ -1,4 +1,4 @@
-import { CONTROL_DEFS, EXPORT_FORMATS, PRESETS, SCENE_TYPES, TEXTURE_MODES } from './presets.js';
+import { CONTROL_DEFS, EXPORT_FORMATS, PRESETS, SCENE_TYPES, SCREEN_TARGETS, TEXTURE_MODES, WORKFLOW_MODES } from './presets.js';
 
 const CHECKBOX_IDS = [
   'depthEnabled',
@@ -15,12 +15,17 @@ const CHECKBOX_IDS = [
   'shadowsEnabled',
   'vegetationEnabled',
   'lightsEnabled',
+  'monochromeEnabled',
+  'thresholdEnabled',
+  'screen60Enabled',
 ];
 
 export function initControls(settings, callbacks) {
   fillSelect('sceneType', SCENE_TYPES, settings.sceneType, callbacks.onSelect);
   fillSelect('exportFormat', EXPORT_FORMATS, settings.exportFormat, callbacks.onSelect);
   fillSelect('textureMode', TEXTURE_MODES, settings.textureMode, callbacks.onSelect);
+  fillSelect('workflowMode', WORKFLOW_MODES, settings.workflowMode, callbacks.onSelect);
+  fillSelect('screenTarget', SCREEN_TARGETS, settings.screenTarget, callbacks.onSelect);
 
   document.querySelectorAll('.control').forEach(node => {
     const key = node.dataset.key;
@@ -73,7 +78,7 @@ export function syncControls(settings) {
     if (input) input.value = settings[key];
     if (out) out.textContent = settings[key];
   });
-  ['sceneType', 'exportFormat', 'textureMode'].forEach(id => {
+  ['sceneType', 'exportFormat', 'textureMode', 'workflowMode', 'screenTarget'].forEach(id => {
     const input = document.getElementById(id);
     if (input) input.value = settings[id];
   });
@@ -87,11 +92,20 @@ export function updateExportEstimate(format, dimensions = null) {
   const target = document.getElementById('exportEstimate');
   if (!target || !format) return;
   const pixels = dimensions ? dimensions.w * dimensions.h : format.px * Math.round(format.px / 1.414);
-  const mb = Math.round((pixels * 4 * 13) / 1024 / 1024);
+  const mb = Math.round((pixels * 4 * 12) / 1024 / 1024);
   const size = dimensions ? `${dimensions.w}x${dimensions.h}px` : `lado mayor ${format.px}px`;
   const warning = format.highResolution ? ' · Alta resolución: más memoria y tiempo' : '';
   target.textContent = `${format.label} · ${size} · memoria estimada ${mb} MB${warning}`;
   target.classList.toggle('warning', !!format.highResolution);
+  const screen = document.getElementById('screenEstimate');
+  if (screen) {
+    const dpi = format.dpi || 300;
+    screen.textContent = `60L · ${dpi} dpi · celda ${formatNumber(dpi / 60)} px`;
+  }
+}
+
+function formatNumber(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export function setStatus(text, progress = null, mode = 'ready') {

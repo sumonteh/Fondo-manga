@@ -23,19 +23,12 @@ export async function downloadPng(layerBuffer, width, height, filename) {
 export async function downloadProjectZip(render, settings, sourceName) {
   const base = safeBaseName(sourceName || 'fondo-manga');
   const files = [
-    ['01_resultado-final.png', await layerToPngBytes(render.layers.final, render.width, render.height)],
-    ['02_linea-principal.png', await layerToPngBytes(render.layers.mainLines, render.width, render.height)],
-    ['03_linea-secundaria.png', await layerToPngBytes(render.layers.secondaryLines, render.width, render.height)],
-    ['04_detalle-fino.png', await layerToPngBytes(render.layers.fineDetails, render.width, render.height)],
-    ['05_sombras.png', await layerToPngBytes(render.layers.shadows, render.width, render.height)],
-    ['06_masas-negras.png', await layerToPngBytes(render.layers.blacks, render.width, render.height)],
-    ['07_tonos.png', await layerToPngBytes(render.layers.tones, render.width, render.height)],
-    ['08_texturas.png', await layerToPngBytes(render.layers.textures, render.width, render.height)],
-    ['09_boceto-azul.png', await layerToPngBytes(render.layers.blueSketch, render.width, render.height)],
-    ['10_original-ajustado.png', await layerToPngBytes(render.layers.adjusted, render.width, render.height)],
-    ['11_mascara-cielo.png', await layerToPngBytes(render.layers.maskSky, render.width, render.height)],
-    ['12_mascara-arquitectura.png', await layerToPngBytes(render.layers.maskArchitecture, render.width, render.height)],
-    ['13_mascara-agua.png', await layerToPngBytes(render.layers.maskWater, render.width, render.height)],
+    ['01_original-ajustado.png', await layerToPngBytes(render.layers.adjusted, render.width, render.height)],
+    ['02_escala-de-grises.png', await layerToPngBytes(render.layers.grayscale, render.width, render.height)],
+    ['03_monocromatico.png', await layerToPngBytes(render.layers.monochrome, render.width, render.height)],
+    ['04_threshold.png', await layerToPngBytes(render.layers.threshold, render.width, render.height)],
+    ['05_trama-60L.png', await layerToPngBytes(render.layers.screen60, render.width, render.height)],
+    ['06_resultado-final.png', await layerToPngBytes(render.layers.final, render.width, render.height)],
     ['configuracion.json', new TextEncoder().encode(JSON.stringify({ version: 5, sourceName, settings }, null, 2))],
   ];
   const zip = makeZip(files);

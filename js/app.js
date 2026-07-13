@@ -178,7 +178,7 @@ async function renderPreview() {
   try {
     const imageData = sourceToImageData('preview');
     drawImageToCanvas(document.getElementById('originalCanvas'), sourceImage, imageData.width, imageData.height);
-    const render = await runWorkerRender(imageData, settings, 'Vista previa');
+    const render = await runWorkerRender(imageData, settingsForRender(), 'Vista previa');
     latestRender = render;
     drawSelectedLayer();
     enableImageActions(true);
@@ -196,7 +196,7 @@ async function downloadCurrentFinal() {
     const dims = exportDimensions();
     guardExportSize(format, dims, false);
     const imageData = sourceToImageData('export');
-    const render = await runWorkerRender(imageData, settings, `Exportando PNG ${format.label}`);
+    const render = await runWorkerRender(imageData, settingsForRender(), `Exportando PNG ${format.label}`);
     await downloadPng(
       render.layers.final,
       render.width,
@@ -221,8 +221,9 @@ async function exportZip() {
       setStatus(`${format.label}: alta resolución, ${dims.w}x${dims.h}px, memoria estimada ${estimatedMb} MB. Puedes cancelar si tarda.`, 0, 'busy');
     }
     const imageData = sourceToImageData('export');
-    const render = await runWorkerRender(imageData, settings, `Exportando ${format.label}`);
-    await downloadProjectZip(render, settings, sourceName);
+    const renderSettings = settingsForRender();
+    const render = await runWorkerRender(imageData, renderSettings, `Exportando ${format.label}`);
+    await downloadProjectZip(render, renderSettings, sourceName);
     setStatus('ZIP de capas exportado.', 100);
   } catch (error) {
     setStatus(error.message || 'No se pudo exportar el ZIP.', 0, 'error');
@@ -313,6 +314,11 @@ function currentFormat() {
   return EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
 }
 
+function settingsForRender() {
+  const format = currentFormat();
+  return { ...settings, renderDpi: format.dpi || 300 };
+}
+
 function guardExportSize(format, dims, includeLayers) {
   const estimatedPixels = dims.w * dims.h;
   const estimatedMb = estimateMemoryMb(estimatedPixels, includeLayers);
@@ -324,7 +330,7 @@ function guardExportSize(format, dims, includeLayers) {
 }
 
 function estimateMemoryMb(pixels, includeLayers) {
-  const layerCount = includeLayers ? 13 : 8;
+  const layerCount = includeLayers ? 12 : 10;
   return Math.round((pixels * 4 * layerCount) / 1024 / 1024);
 }
 
