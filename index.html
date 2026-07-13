@@ -146,6 +146,19 @@
 
     <main class="workspace">
       <section class="viewer-toolbar" aria-label="Vista">
+        <label class="layer-view"><span>Capa</span><select id="layerView">
+          <option value="final">Resultado final</option>
+          <option value="adjusted">Original ajustado</option>
+          <option value="mainLines">Línea principal</option>
+          <option value="secondaryLines">Línea secundaria</option>
+          <option value="fineDetails">Detalle fino</option>
+          <option value="shadows">Sombras</option>
+          <option value="blacks">Masas negras</option>
+          <option value="tones">Tonos</option>
+          <option value="maskSky">Máscara cielo</option>
+          <option value="maskArchitecture">Máscara arquitectura</option>
+          <option value="maskWater">Máscara agua</option>
+        </select></label>
         <button class="mini" id="fitBtn" type="button">Ajustar</button>
         <button class="mini" id="zoomOut" type="button">-</button>
         <output id="zoomLabel">100%</output>

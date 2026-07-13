@@ -69,6 +69,7 @@ function wireEvents() {
   });
 
   document.getElementById('compareSlider').addEventListener('input', event => updateCompare(Number(event.target.value)));
+  document.getElementById('layerView').addEventListener('change', drawSelectedLayer);
   document.getElementById('cancelJob').addEventListener('click', cancelActiveJob);
   document.getElementById('downloadFinal').addEventListener('click', downloadCurrentFinal);
   document.getElementById('downloadZip').addEventListener('click', exportZip);
@@ -179,7 +180,7 @@ async function renderPreview() {
     drawImageToCanvas(document.getElementById('originalCanvas'), sourceImage, imageData.width, imageData.height);
     const render = await runWorkerRender(imageData, settings, 'Vista previa');
     latestRender = render;
-    drawLayerToCanvas(document.getElementById('resultCanvas'), render.layers.final, render.width, render.height);
+    drawSelectedLayer();
     enableImageActions(true);
     updateCompare(Number(document.getElementById('compareSlider').value));
     setStatus(`Vista previa v5 · ${render.width}x${render.height}px · ${settings.sceneType}`, 100);
@@ -193,7 +194,7 @@ async function downloadCurrentFinal() {
   try {
     const format = currentFormat();
     const dims = exportDimensions();
-    guardExportSize(format, dims);
+    guardExportSize(format, dims, false);
     const imageData = sourceToImageData('export');
     const render = await runWorkerRender(imageData, settings, `Exportando PNG ${format.label}`);
     await downloadPng(
@@ -213,9 +214,9 @@ async function exportZip() {
   try {
     const format = EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
     const dims = exportDimensions();
-    guardExportSize(format, dims);
+    guardExportSize(format, dims, true);
     const estimatedPixels = dims.w * dims.h;
-    const estimatedMb = Math.round((estimatedPixels * 4 * 9) / 1024 / 1024);
+    const estimatedMb = estimateMemoryMb(estimatedPixels, true);
     if (format.highResolution || estimatedPixels > 12000000) {
       setStatus(`${format.label}: alta resolución, ${dims.w}x${dims.h}px, memoria estimada ${estimatedMb} MB. Puedes cancelar si tarda.`, 0, 'busy');
     }
@@ -312,12 +313,26 @@ function currentFormat() {
   return EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
 }
 
-function guardExportSize(format, dims) {
+function guardExportSize(format, dims, includeLayers) {
   const estimatedPixels = dims.w * dims.h;
-  const estimatedMb = Math.round((estimatedPixels * 4 * 9) / 1024 / 1024);
-  if (estimatedPixels > 36000000) {
-    throw new Error(`${format.label} requiere aproximadamente ${estimatedMb} MB durante el render. Prueba A5 600dpi, A4 450dpi o A4 300dpi.`);
+  const estimatedMb = estimateMemoryMb(estimatedPixels, includeLayers);
+  const memoryGb = navigator.deviceMemory || 4;
+  const budgetMb = Math.min(1200, memoryGb * 210);
+  if (estimatedMb > budgetMb || estimatedPixels > (includeLayers ? 26000000 : 36000000)) {
+    throw new Error(`${format.label} requiere aproximadamente ${estimatedMb} MB. Fallback recomendado: A5 600dpi, A4 450dpi o exportar solo el PNG final.`);
   }
+}
+
+function estimateMemoryMb(pixels, includeLayers) {
+  const layerCount = includeLayers ? 13 : 8;
+  return Math.round((pixels * 4 * layerCount) / 1024 / 1024);
+}
+
+function drawSelectedLayer() {
+  if (!latestRender) return;
+  const key = document.getElementById('layerView').value;
+  const layer = latestRender.layers[key] || latestRender.layers.final;
+  drawLayerToCanvas(document.getElementById('resultCanvas'), layer, latestRender.width, latestRender.height);
 }
 
 function dimensionsForLongSide(longSide) {

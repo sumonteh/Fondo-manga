@@ -266,6 +266,9 @@ input[type="range"]::-moz-range-thumb {
   flex-wrap: wrap;
 }
 
+.layer-view { display: flex; align-items: center; gap: 6px; font-size: .78rem; }
+.layer-view select { max-width: 170px; min-height: 34px; }
+
 .viewer {
   min-height: 0;
   overflow: hidden;

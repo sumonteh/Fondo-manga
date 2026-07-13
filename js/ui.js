@@ -87,7 +87,7 @@ export function updateExportEstimate(format, dimensions = null) {
   const target = document.getElementById('exportEstimate');
   if (!target || !format) return;
   const pixels = dimensions ? dimensions.w * dimensions.h : format.px * Math.round(format.px / 1.414);
-  const mb = Math.round((pixels * 4 * 9) / 1024 / 1024);
+  const mb = Math.round((pixels * 4 * 13) / 1024 / 1024);
   const size = dimensions ? `${dimensions.w}x${dimensions.h}px` : `lado mayor ${format.px}px`;
   const warning = format.highResolution ? ' · Alta resolución: más memoria y tiempo' : '';
   target.textContent = `${format.label} · ${size} · memoria estimada ${mb} MB${warning}`;
