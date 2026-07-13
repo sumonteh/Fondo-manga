@@ -6,16 +6,16 @@ import { texturePixel } from './textures.js';
 
 export function renderManga(imageData, settings, progress = () => {}) {
   const { width: w, height: h, data } = imageData;
-  progress(6, 'Convirtiendo a escala de grises');
+  progress(6, 'Etapa 1: preparando imagen y niveles');
   const gray = luminanceFromImage(data, settings);
   progress(16, 'Reduciendo ruido sin borrar bordes');
   const smooth = edgePreservingSmooth(gray, w, h, settings.cleanup);
   const normalized = normalizeTones(smooth, settings);
-  progress(28, 'Clasificando regiones');
+  progress(28, 'Etapa 2: generando máscaras por regiones');
   const regions = classifyRegions(normalized, w, h, settings);
-  progress(42, 'Extrayendo líneas multiescala');
+  progress(42, 'Etapas 3 y 4: extrayendo y limpiando líneas');
   const edges = multiScaleEdges(normalized, w, h, settings, regions);
-  progress(58, 'Simplificando masas tonales');
+  progress(58, 'Etapa 5: construyendo tonos y sombras');
   const tones = simplifyTones(normalized, w, h, settings, regions);
   progress(72, 'Aplicando tramas localizadas');
   const layers = composeLayers(data, normalized, tones, edges, regions, w, h, settings);
@@ -31,6 +31,7 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
   const fineDetails = new Uint8ClampedArray(n * 4);
   const blueSketch = new Uint8ClampedArray(n * 4);
   const blacks = new Uint8ClampedArray(n * 4);
+  const shadowLayer = new Uint8ClampedArray(n * 4);
   const toneLayer = new Uint8ClampedArray(n * 4);
   const textureLayer = new Uint8ClampedArray(n * 4);
   const adjusted = new Uint8ClampedArray(n * 4);
@@ -44,7 +45,7 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
       const secondary = !!(settings.showSecondaryLine && edges.secondary[i] && !main);
       const detail = !!(settings.showFineDetail && edges.detail[i] && !main && !secondary && !regions.sky[i]);
       const line = main || secondary || detail;
-      const level = tones[i];
+      const level = tones.levels[i];
       const regionFlags = {
         sky: !!regions.sky[i],
         organic: !!(regions.organic[i] || regions.water[i] || regions.smoothSurface[i]),
@@ -53,8 +54,8 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
         && level < 4
         && texturePixel(x, y, level, settings, regionFlags, w, h);
       const protectedStructure = regions.architecture[i] || regions.water[i] || regions.sky[i] || line;
-      const solidBlack = !blue && !protectedStructure
-        && (level === 4 || (regions.organic[i] && level >= 3 && settings.blackMass > 56));
+      const solidBlack = !blue && !protectedStructure && !!tones.blacks[i];
+      const shadow = !blue && !line && !!tones.shadows[i] && !regions.sky[i] && !regions.water[i];
 
       const toneValue = toneValueFor(level);
       setOpaque(adjusted, p, gray[i], gray[i], gray[i]);
@@ -65,6 +66,9 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
       } else {
         setTransparent(blacks, p);
       }
+
+      if (shadow) setOpaque(shadowLayer, p, 72, 72, 72);
+      else setTransparent(shadowLayer, p);
 
       if (textured) {
         setOpaque(textureLayer, p, 18, 18, 18);
@@ -95,6 +99,8 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
         setOpaque(final, p, 112, 112, 112);
       } else if (solidBlack || textured) {
         setOpaque(final, p, 18, 18, 18);
+      } else if (shadow) {
+        setOpaque(final, p, 204, 204, 204);
       } else {
         const paper = level === 0 ? 255 : level === 1 ? 246 : level === 2 ? 232 : 212;
         setOpaque(final, p, paper, paper, paper);
@@ -108,11 +114,25 @@ function composeLayers(src, gray, tones, edges, regions, w, h, settings) {
     secondaryLines: secondaryLines.buffer,
     fineDetails: fineDetails.buffer,
     blacks: blacks.buffer,
+    shadows: shadowLayer.buffer,
     tones: toneLayer.buffer,
     textures: textureLayer.buffer,
     blueSketch: blueSketch.buffer,
     adjusted: adjusted.buffer,
+    maskSky: maskToLayer(regions.sky),
+    maskArchitecture: maskToLayer(regions.architecture),
+    maskWater: maskToLayer(regions.water),
   };
+
+  function maskToLayer(mask) {
+    const layer = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const p = i * 4;
+      const value = mask[i] ? 0 : 255;
+      setOpaque(layer, p, value, value, value);
+    }
+    return layer.buffer;
+  }
 }
 
 function toneValueFor(level) {

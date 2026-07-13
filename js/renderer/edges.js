@@ -1,4 +1,5 @@
 import { boxBlur } from './preprocess.js';
+import { cleanLineLayers } from './line-cleanup.js';
 
 export function sobel(gray, w, h) {
   const mag = new Float32Array(w * h);
@@ -68,7 +69,7 @@ export function multiScaleEdges(gray, w, h, settings, regions) {
   dilate(main, w, h, Math.max(0, settings.mainLineWeight ?? 2));
   dilate(secondary, w, h, Math.max(0, settings.secondaryLineWeight ?? 1));
   dilate(detail, w, h, Math.max(0, settings.fineDetailWeight ?? 0));
-  return { main, secondary, detail, magnitude: sob.mag };
+  return cleanLineLayers({ main, secondary, detail, magnitude: sob.mag }, w, h, settings, regions);
 }
 
 function depthFactor(y, h, settings, farDetail) {

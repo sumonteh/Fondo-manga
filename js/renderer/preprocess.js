@@ -6,9 +6,17 @@ export function luminanceFromImage(data, settings) {
   const value = settings.value ?? 0;
   const fc = (259 * (contrast + 255)) / (255 * (259 - contrast));
   const pivot = 128 + value * 0.9;
+  const black = Math.min((settings.blackPoint ?? 0), (settings.whitePoint ?? 255) - 2);
+  const white = Math.max((settings.whitePoint ?? 255), black + 2);
+  const gamma = Math.max(0.4, (settings.gamma ?? 100) / 100);
+  const grayMix = settings.grayscaleEnabled === false ? 0 : (settings.grayscaleMix ?? 100) / 100;
   for (let i = 0, p = 0; i < n; i++, p += 4) {
-    let g = data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
+    const perceptual = data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
+    const neutral = (data[p] + data[p + 1] + data[p + 2]) / 3;
+    let g = neutral * (1 - grayMix) + perceptual * grayMix;
     g = fc * (g - pivot) + pivot + brightness + value * 0.55;
+    g = clamp((g - black) * 255 / (white - black), 0, 255);
+    g = 255 * Math.pow(g / 255, 1 / gamma);
     gray[i] = clamp(g, 0, 255);
   }
   return gray;

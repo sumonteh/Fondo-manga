@@ -7,6 +7,7 @@ export function classifyRegions(gray, w, h, settings) {
   const water = new Uint8Array(w * h);
   const smoothSurface = new Uint8Array(w * h);
   const lightTrail = new Uint8Array(w * h);
+  const deepShadow = new Uint8Array(w * h);
   const edges = sobel(gray, w, h).mag;
 
   for (let y = 0; y < h; y++) {
@@ -15,11 +16,16 @@ export function classifyRegions(gray, w, h, settings) {
       const i = y * w + x;
       const g = gray[i];
       const e = edges[i];
-      if (settings.skyProtect && yt < 0.42 && g > 158 && e < 88) sky[i] = 1;
-      if (settings.architectureBoost && e > 28 && isLikelyStructural(edges, w, h, x, y)) architecture[i] = 1;
-      if (settings.organicRegions && e > 22 && e < 125 && localVariance(gray, w, h, x, y) > 180) organic[i] = 1;
-      if ((settings.sceneType === 'riverbank' || settings.waterClean) && yt > 0.50 && g > 92 && e < 62) water[i] = 1;
-      if (settings.preserveLightTrails && g > 210 && e > 34 && yt > 0.28) lightTrail[i] = 1;
+      const skyBias = (settings.skyInfluence ?? 100) / 100;
+      const architectureBias = (settings.architectureInfluence ?? 100) / 100;
+      const waterBias = (settings.waterInfluence ?? 100) / 100;
+      const organicBias = (settings.vegetationInfluence ?? 100) / 100;
+      if (settings.skyProtect && skyBias > 0 && yt < 0.46 && g > 178 - skyBias * 24 && e < 65 + skyBias * 28) sky[i] = 1;
+      if (settings.architectureBoost && architectureBias > 0 && e > 38 - architectureBias * 14 && isLikelyStructural(edges, w, h, x, y)) architecture[i] = 1;
+      if (settings.organicRegions && settings.vegetationEnabled !== false && organicBias > 0 && e > 22 && e < 135 && localVariance(gray, w, h, x, y) > 280 - organicBias * 120) organic[i] = 1;
+      if ((settings.sceneType === 'riverbank' || settings.waterClean) && waterBias > 0 && yt > 0.50 && g > 110 - waterBias * 24 && e < 48 + waterBias * 18) water[i] = 1;
+      if (settings.preserveLightTrails && settings.lightsEnabled !== false && g > 210 && e > 34 && yt > 0.28) lightTrail[i] = 1;
+      if (settings.shadowsEnabled !== false && g < 54 && !sky[i] && !water[i]) deepShadow[i] = 1;
       if (!organic[i] && e < 28 && g > 132) smoothSurface[i] = 1;
     }
   }
@@ -31,7 +37,7 @@ export function classifyRegions(gray, w, h, settings) {
     sky.fill(0);
   }
 
-  return { sky, architecture, organic, water, smoothSurface, lightTrail };
+  return { sky, architecture, organic, water, smoothSurface, lightTrail, deepShadow };
 }
 
 function isLikelyStructural(edges, w, h, x, y) {
