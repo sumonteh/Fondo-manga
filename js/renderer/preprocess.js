@@ -3,10 +3,12 @@ export function luminanceFromImage(data, settings) {
   const gray = new Float32Array(n);
   const contrast = settings.contrast ?? 0;
   const brightness = settings.brightness ?? 0;
+  const value = settings.value ?? 0;
   const fc = (259 * (contrast + 255)) / (255 * (259 - contrast));
+  const pivot = 128 + value * 0.9;
   for (let i = 0, p = 0; i < n; i++, p += 4) {
     let g = data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
-    g = fc * (g - 128) + 128 + brightness;
+    g = fc * (g - pivot) + pivot + brightness + value * 0.55;
     gray[i] = clamp(g, 0, 255);
   }
   return gray;
@@ -56,14 +58,18 @@ export function edgePreservingSmooth(gray, w, h, cleanup) {
   return out;
 }
 
-export function normalizeTones(gray) {
+export function normalizeTones(gray, settings = {}) {
   const sorted = Array.from(gray).sort((a, b) => a - b);
-  const lo = sorted[Math.floor(sorted.length * 0.03)] ?? 0;
-  const hi = sorted[Math.floor(sorted.length * 0.97)] ?? 255;
+  const softness = (settings.toneSoftness ?? 55) / 100;
+  const loPct = 0.01 + (1 - softness) * 0.035;
+  const hiPct = 0.99 - (1 - softness) * 0.035;
+  const lo = sorted[Math.floor(sorted.length * loPct)] ?? 0;
+  const hi = sorted[Math.floor(sorted.length * hiPct)] ?? 255;
   const span = Math.max(1, hi - lo);
   const out = new Float32Array(gray.length);
   for (let i = 0; i < gray.length; i++) {
-    out[i] = clamp(((gray[i] - lo) / span) * 255, 0, 255);
+    const normalized = ((gray[i] - lo) / span) * 255;
+    out[i] = clamp(gray[i] * softness + normalized * (1 - softness), 0, 255);
   }
   return out;
 }

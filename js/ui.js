@@ -1,5 +1,18 @@
 import { CONTROL_DEFS, EXPORT_FORMATS, PRESETS, SCENE_TYPES, TEXTURE_MODES } from './presets.js';
 
+const CHECKBOX_IDS = [
+  'depthEnabled',
+  'skyProtect',
+  'architectureBoost',
+  'organicRegions',
+  'waterClean',
+  'preserveLightTrails',
+  'showMainLine',
+  'showSecondaryLine',
+  'showFineDetail',
+  'blueSketch',
+];
+
 export function initControls(settings, callbacks) {
   fillSelect('sceneType', SCENE_TYPES, settings.sceneType, callbacks.onSelect);
   fillSelect('exportFormat', EXPORT_FORMATS, settings.exportFormat, callbacks.onSelect);
@@ -19,8 +32,9 @@ export function initControls(settings, callbacks) {
     node.querySelector('input').addEventListener('change', event => callbacks.onCommit(key, Number(event.target.value)));
   });
 
-  ['depthEnabled', 'skyProtect', 'architectureBoost', 'organicRegions'].forEach(id => {
+  CHECKBOX_IDS.forEach(id => {
     const input = document.getElementById(id);
+    if (!input) return;
     input.checked = !!settings[id];
     input.addEventListener('change', event => callbacks.onCommit(id, event.target.checked));
   });
@@ -59,10 +73,21 @@ export function syncControls(settings) {
     const input = document.getElementById(id);
     if (input) input.value = settings[id];
   });
-  ['depthEnabled', 'skyProtect', 'architectureBoost', 'organicRegions'].forEach(id => {
+  CHECKBOX_IDS.forEach(id => {
     const input = document.getElementById(id);
     if (input) input.checked = !!settings[id];
   });
+}
+
+export function updateExportEstimate(format, dimensions = null) {
+  const target = document.getElementById('exportEstimate');
+  if (!target || !format) return;
+  const pixels = dimensions ? dimensions.w * dimensions.h : format.px * Math.round(format.px / 1.414);
+  const mb = Math.round((pixels * 4 * 9) / 1024 / 1024);
+  const size = dimensions ? `${dimensions.w}x${dimensions.h}px` : `lado mayor ${format.px}px`;
+  const warning = format.highResolution ? ' · Alta resolución: más memoria y tiempo' : '';
+  target.textContent = `${format.label} · ${size} · memoria estimada ${mb} MB${warning}`;
+  target.classList.toggle('warning', !!format.highResolution);
 }
 
 export function setStatus(text, progress = null, mode = 'ready') {

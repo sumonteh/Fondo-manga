@@ -24,11 +24,14 @@ export async function downloadProjectZip(render, settings, sourceName) {
   const base = safeBaseName(sourceName || 'fondo-manga');
   const files = [
     ['01_resultado-final.png', await layerToPngBytes(render.layers.final, render.width, render.height)],
-    ['02_lineas.png', await layerToPngBytes(render.layers.lines, render.width, render.height)],
-    ['03_masas-negras.png', await layerToPngBytes(render.layers.blacks, render.width, render.height)],
-    ['04_tonos.png', await layerToPngBytes(render.layers.tones, render.width, render.height)],
-    ['05_texturas.png', await layerToPngBytes(render.layers.textures, render.width, render.height)],
-    ['06_original-ajustado.png', await layerToPngBytes(render.layers.adjusted, render.width, render.height)],
+    ['02_linea-principal.png', await layerToPngBytes(render.layers.mainLines, render.width, render.height)],
+    ['03_linea-secundaria.png', await layerToPngBytes(render.layers.secondaryLines, render.width, render.height)],
+    ['04_detalle-fino.png', await layerToPngBytes(render.layers.fineDetails, render.width, render.height)],
+    ['05_masas-negras.png', await layerToPngBytes(render.layers.blacks, render.width, render.height)],
+    ['06_tonos.png', await layerToPngBytes(render.layers.tones, render.width, render.height)],
+    ['07_texturas.png', await layerToPngBytes(render.layers.textures, render.width, render.height)],
+    ['08_boceto-azul.png', await layerToPngBytes(render.layers.blueSketch, render.width, render.height)],
+    ['09_original-ajustado.png', await layerToPngBytes(render.layers.adjusted, render.width, render.height)],
     ['configuracion.json', new TextEncoder().encode(JSON.stringify({ version: 5, sourceName, settings }, null, 2))],
   ];
   const zip = makeZip(files);

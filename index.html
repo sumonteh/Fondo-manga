@@ -38,10 +38,10 @@
 
       <section class="panel tabs-panel">
         <div class="tabs" role="tablist">
-          <button class="active" data-tab="principal" type="button">Principal</button>
+          <button class="active" data-tab="principal" type="button">Imagen</button>
           <button data-tab="linea" type="button">Línea</button>
           <button data-tab="tonos" type="button">Tonos</button>
-          <button data-tab="avanzado" type="button">Avanzado</button>
+          <button data-tab="regiones" type="button">Regiones</button>
         </div>
 
         <div class="tab-page active" id="tab-principal">
@@ -53,37 +53,53 @@
             <span>Formato de exportación</span>
             <select id="exportFormat"></select>
           </label>
+          <div class="estimate" id="exportEstimate">Exportación: Web 2000px</div>
+          <div class="control" data-key="value"></div>
+          <div class="control" data-key="brightness"></div>
+          <div class="control" data-key="contrast"></div>
           <div class="control" data-key="detail"></div>
           <div class="control" data-key="cleanup"></div>
-          <div class="control" data-key="whiteReserve"></div>
-          <div class="control" data-key="blackMass"></div>
-          <div class="control" data-key="texture"></div>
         </div>
 
         <div class="tab-page" id="tab-linea">
           <div class="control" data-key="mainLine"></div>
+          <div class="control" data-key="mainLineWeight"></div>
           <div class="control" data-key="secondaryLine"></div>
+          <div class="control" data-key="secondaryLineWeight"></div>
+          <div class="control" data-key="fineDetail"></div>
+          <div class="control" data-key="fineDetailWeight"></div>
           <div class="control" data-key="edgeContinuity"></div>
           <div class="control" data-key="farDetail"></div>
+          <label class="check"><input id="showMainLine" type="checkbox"> Mostrar línea principal</label>
+          <label class="check"><input id="showSecondaryLine" type="checkbox"> Mostrar línea secundaria</label>
+          <label class="check"><input id="showFineDetail" type="checkbox"> Mostrar detalle fino</label>
         </div>
 
         <div class="tab-page" id="tab-tonos">
+          <div class="control" data-key="whiteReserve"></div>
+          <div class="control" data-key="blackMass"></div>
+          <div class="control" data-key="blackCoverageLimit"></div>
           <div class="control" data-key="shadowThreshold"></div>
+          <div class="control" data-key="toneSoftness"></div>
           <div class="control" data-key="toneCount"></div>
           <div class="control" data-key="transitionHardness"></div>
+          <div class="control" data-key="texture"></div>
           <label class="field">
             <span>Trama</span>
             <select id="textureMode"></select>
           </label>
         </div>
 
-        <div class="tab-page" id="tab-avanzado">
+        <div class="tab-page" id="tab-regiones">
           <details class="advanced" open>
-            <summary>Controles avanzados</summary>
+            <summary>Materiales y profundidad</summary>
             <label class="check"><input id="depthEnabled" type="checkbox"> Profundidad vertical</label>
             <label class="check"><input id="skyProtect" type="checkbox"> Proteger cielos y zonas claras superiores</label>
             <label class="check"><input id="architectureBoost" type="checkbox"> Reforzar arquitectura</label>
             <label class="check"><input id="organicRegions" type="checkbox"> Detectar textura orgánica</label>
+            <label class="check"><input id="waterClean" type="checkbox"> Agua limpia con líneas horizontales</label>
+            <label class="check"><input id="preserveLightTrails" type="checkbox"> Conservar luces y estelas</label>
+            <label class="check"><input id="blueSketch" type="checkbox"> Boceto azul no fotográfico</label>
           </details>
         </div>
       </section>

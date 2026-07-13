@@ -11,6 +11,7 @@ import {
   setBusy,
   setStatus,
   syncControls,
+  updateExportEstimate,
   updateCompare,
 } from './ui.js';
 
@@ -34,6 +35,7 @@ initControls(settings, {
 renderPresets(customPresets, settings.preset, applyPreset);
 wireEvents();
 syncControls(settings);
+updateExportEstimate(currentFormat());
 setStatus(workerSupportsOffscreen() ? 'Listo. Worker activo; OffscreenCanvas disponible para futuras optimizaciones.' : 'Listo. Worker activo con pipeline ImageData.', 0);
 
 function wireEvents() {
@@ -119,6 +121,7 @@ function updateSetting(key, value, commit) {
   settings = { ...settings, [key]: value, preset: commit ? settings.preset : 'custom-live' };
   saveSettings(settings);
   if (commit) history.push(settings);
+  if (key === 'exportFormat') updateExportEstimate(currentFormat(), sourceImage ? exportDimensions() : null);
   schedulePreview();
 }
 
@@ -127,6 +130,7 @@ function commitSettings() {
   history.push(settings);
   syncControls(settings);
   renderPresets(customPresets, settings.preset, applyPreset);
+  updateExportEstimate(currentFormat(), sourceImage ? exportDimensions() : null);
   schedulePreview();
 }
 
@@ -152,6 +156,7 @@ function loadImage(file) {
     document.getElementById('originalCanvas').hidden = false;
     document.getElementById('compareMask').hidden = false;
     viewerTools.reset();
+    updateExportEstimate(currentFormat(), exportDimensions());
     schedulePreview(true);
   };
   img.onerror = () => {
@@ -184,14 +189,20 @@ async function renderPreview() {
 }
 
 async function downloadCurrentFinal() {
-  if (!latestRender) return;
+  if (!sourceImage) return;
   try {
+    const format = currentFormat();
+    const dims = exportDimensions();
+    guardExportSize(format, dims);
+    const imageData = sourceToImageData('export');
+    const render = await runWorkerRender(imageData, settings, `Exportando PNG ${format.label}`);
     await downloadPng(
-      latestRender.layers.final,
-      latestRender.width,
-      latestRender.height,
+      render.layers.final,
+      render.width,
+      render.height,
       `${safeBaseName(sourceName || 'fondo-manga')}-resultado-final.png`,
     );
+    setStatus(`PNG final exportado · ${render.width}x${render.height}px`, 100);
   } catch (error) {
     setStatus(error.message || 'No se pudo descargar el PNG.', 0, 'error');
   }
@@ -201,9 +212,12 @@ async function exportZip() {
   if (!sourceImage) return;
   try {
     const format = EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
-    const estimatedPixels = exportDimensions().w * exportDimensions().h;
-    if (format.value === 'a4' && estimatedPixels > 9000000 && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      setStatus('A4 puede superar la memoria disponible en este dispositivo. Puedes cancelar si la barra no avanza.', 0, 'busy');
+    const dims = exportDimensions();
+    guardExportSize(format, dims);
+    const estimatedPixels = dims.w * dims.h;
+    const estimatedMb = Math.round((estimatedPixels * 4 * 9) / 1024 / 1024);
+    if (format.highResolution || estimatedPixels > 12000000) {
+      setStatus(`${format.label}: alta resolución, ${dims.w}x${dims.h}px, memoria estimada ${estimatedMb} MB. Puedes cancelar si tarda.`, 0, 'busy');
     }
     const imageData = sourceToImageData('export');
     const render = await runWorkerRender(imageData, settings, `Exportando ${format.label}`);
@@ -290,8 +304,20 @@ function previewDimensions() {
 }
 
 function exportDimensions() {
-  const format = EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
+  const format = currentFormat();
   return dimensionsForLongSide(format.px);
+}
+
+function currentFormat() {
+  return EXPORT_FORMATS.find(f => f.value === settings.exportFormat) || EXPORT_FORMATS[0];
+}
+
+function guardExportSize(format, dims) {
+  const estimatedPixels = dims.w * dims.h;
+  const estimatedMb = Math.round((estimatedPixels * 4 * 9) / 1024 / 1024);
+  if (estimatedPixels > 36000000) {
+    throw new Error(`${format.label} requiere aproximadamente ${estimatedMb} MB durante el render. Prueba A5 600dpi, A4 450dpi o A4 300dpi.`);
+  }
 }
 
 function dimensionsForLongSide(longSide) {

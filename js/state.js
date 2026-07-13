@@ -10,7 +10,9 @@ export function cloneSettings(settings) {
 export function loadSettings() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : cloneSettings(DEFAULT_SETTINGS);
+    if (!saved) return cloneSettings(DEFAULT_SETTINGS);
+    const parsed = JSON.parse(saved);
+    return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed }, parsed);
   } catch {
     return cloneSettings(DEFAULT_SETTINGS);
   }
@@ -38,6 +40,21 @@ export function saveCustomPreset(name, settings) {
   presets.push({ id, name, settings: copy, custom: true });
   localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(presets));
   return { id, name, settings: copy, custom: true };
+}
+
+function normalizeSettings(settings, raw = {}) {
+  const out = { ...settings };
+  if (out.exportFormat === 'a5') out.exportFormat = 'a5-300';
+  if (out.exportFormat === 'a4') out.exportFormat = 'a4-300';
+  if (raw.mainLine <= 8 && raw.mainLineWeight == null) {
+    out.mainLineWeight = out.mainLine;
+    out.mainLine = DEFAULT_SETTINGS.mainLine;
+  }
+  if (raw.secondaryLine <= 6 && raw.secondaryLineWeight == null) {
+    out.secondaryLineWeight = out.secondaryLine;
+    out.secondaryLine = DEFAULT_SETTINGS.secondaryLine;
+  }
+  return out;
 }
 
 export class HistoryStack {

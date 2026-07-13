@@ -29,6 +29,9 @@ export function multiScaleEdges(gray, w, h, settings, regions) {
   const secondary = new Uint8Array(w * h);
   const detail = new Uint8Array(w * h);
   const baseDetail = settings.detail / 100;
+  const mainIntensity = (settings.mainLine ?? 70) / 100;
+  const secondaryIntensity = (settings.secondaryLine ?? 65) / 100;
+  const fineIntensity = (settings.fineDetail ?? 40) / 100;
   const clean = settings.cleanup / 100;
   const far = settings.farDetail / 100;
 
@@ -38,26 +41,33 @@ export function multiScaleEdges(gray, w, h, settings, regions) {
       const i = y * w + x;
       const sky = regions.sky[i];
       const organic = regions.organic[i];
+      const architecture = regions.architecture[i];
+      const water = regions.water[i];
+      const lightTrail = regions.lightTrail[i];
       const dogMain = Math.abs(blur6[i] - blur1[i]);
       const dogFine = Math.abs(blur3[i] - blur1[i]);
-      const straightBoost = regions.architecture[i] ? 0.82 : 1;
-      const skyPenalty = sky ? 1.85 : 1;
+      const straightBoost = architecture ? 0.64 : 1;
+      const skyPenalty = sky ? 2.3 : 1;
+      const waterPenalty = water ? 1.35 : 1;
       const organicBoost = organic ? 0.85 : 1;
-      const tMain = (18 + clean * 35 - baseDetail * 11) * depth * straightBoost * skyPenalty;
-      const tSec = (10 + clean * 28 - baseDetail * 9) * depth * organicBoost * skyPenalty;
-      const tFine = (7 + clean * 26 - baseDetail * 12) * depth * skyPenalty;
-      if (sob.mag[i] > tMain * 7 || dogMain > tMain) main[i] = 1;
-      else if (sob.mag[i] > tSec * 6 || dogFine > tSec) secondary[i] = 1;
-      else if (sob.mag[i] > tFine * 5 && baseDetail > 0.4) detail[i] = 1;
+      const tMain = (22 + clean * 40 - mainIntensity * 18) * depth * straightBoost * skyPenalty * waterPenalty;
+      const tSec = (12 + clean * 24 - secondaryIntensity * 12 - baseDetail * 5) * depth * organicBoost * skyPenalty * (water ? 1.15 : 1);
+      const tFine = (9 + clean * 28 - fineIntensity * 12 - baseDetail * 7) * depth * skyPenalty * (water ? 1.7 : 1);
+      if (lightTrail || sob.mag[i] > tMain * 6.2 || dogMain > tMain) main[i] = 1;
+      else if (sob.mag[i] > tSec * 4.8 || dogFine > tSec || (architecture && sob.mag[i] > tSec * 3.2)) secondary[i] = 1;
+      else if (!sky && !water && sob.mag[i] > tFine * 4.2 && fineIntensity > 0.08 && baseDetail > 0.28) detail[i] = 1;
     }
   }
 
   removeSpecks(main, w, h, settings.cleanup > 60 ? 2 : 1);
-  removeSpecks(secondary, w, h, settings.cleanup > 70 ? 2 : 1);
+  removeSpecks(secondary, w, h, settings.cleanup > 78 ? 2 : 1);
+  removeSpecks(detail, w, h, settings.cleanup > 64 ? 2 : 1);
   if (settings.edgeContinuity > 35) bridgeSmallGaps(main, w, h);
+  if (settings.edgeContinuity > 55) bridgeSmallGaps(secondary, w, h);
 
-  dilate(main, w, h, Math.max(0, settings.mainLine));
-  dilate(secondary, w, h, Math.max(0, settings.secondaryLine));
+  dilate(main, w, h, Math.max(0, settings.mainLineWeight ?? 2));
+  dilate(secondary, w, h, Math.max(0, settings.secondaryLineWeight ?? 1));
+  dilate(detail, w, h, Math.max(0, settings.fineDetailWeight ?? 0));
   return { main, secondary, detail, magnitude: sob.mag };
 }
 

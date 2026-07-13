@@ -6,6 +6,7 @@ export function classifyRegions(gray, w, h, settings) {
   const organic = new Uint8Array(w * h);
   const water = new Uint8Array(w * h);
   const smoothSurface = new Uint8Array(w * h);
+  const lightTrail = new Uint8Array(w * h);
   const edges = sobel(gray, w, h).mag;
 
   for (let y = 0; y < h; y++) {
@@ -14,10 +15,11 @@ export function classifyRegions(gray, w, h, settings) {
       const i = y * w + x;
       const g = gray[i];
       const e = edges[i];
-      if (settings.skyProtect && yt < 0.42 && g > 172 && e < 75) sky[i] = 1;
-      if (settings.architectureBoost && e > 38 && isLikelyStraight(edges, w, h, x, y)) architecture[i] = 1;
+      if (settings.skyProtect && yt < 0.42 && g > 158 && e < 88) sky[i] = 1;
+      if (settings.architectureBoost && e > 28 && isLikelyStructural(edges, w, h, x, y)) architecture[i] = 1;
       if (settings.organicRegions && e > 22 && e < 125 && localVariance(gray, w, h, x, y) > 180) organic[i] = 1;
-      if (settings.sceneType === 'riverbank' && yt > 0.48 && g > 116 && e < 42) water[i] = 1;
+      if ((settings.sceneType === 'riverbank' || settings.waterClean) && yt > 0.50 && g > 92 && e < 62) water[i] = 1;
+      if (settings.preserveLightTrails && g > 210 && e > 34 && yt > 0.28) lightTrail[i] = 1;
       if (!organic[i] && e < 28 && g > 132) smoothSurface[i] = 1;
     }
   }
@@ -29,15 +31,17 @@ export function classifyRegions(gray, w, h, settings) {
     sky.fill(0);
   }
 
-  return { sky, architecture, organic, water, smoothSurface };
+  return { sky, architecture, organic, water, smoothSurface, lightTrail };
 }
 
-function isLikelyStraight(edges, w, h, x, y) {
+function isLikelyStructural(edges, w, h, x, y) {
   if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) return false;
   const i = y * w + x;
   const horizontal = edges[i - 2] + edges[i - 1] + edges[i + 1] + edges[i + 2];
   const vertical = edges[i - 2 * w] + edges[i - w] + edges[i + w] + edges[i + 2 * w];
-  return horizontal > 170 || vertical > 170;
+  const diagA = edges[i - 2 * w - 2] + edges[i - w - 1] + edges[i + w + 1] + edges[i + 2 * w + 2];
+  const diagB = edges[i - 2 * w + 2] + edges[i - w + 1] + edges[i + w - 1] + edges[i + 2 * w - 2];
+  return horizontal > 125 || vertical > 125 || diagA > 145 || diagB > 145;
 }
 
 function localVariance(gray, w, h, x, y) {

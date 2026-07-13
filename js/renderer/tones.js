@@ -1,35 +1,43 @@
 export function simplifyTones(gray, w, h, settings, regions) {
   const levels = new Uint8Array(w * h);
-  const whiteCut = 138 + settings.whiteReserve * 1.05;
-  const shadowCut = 170 - settings.shadowThreshold * 0.9;
-  const blackCut = 94 + (100 - settings.blackMass) * 0.62;
+  const whiteCut = 142 + settings.whiteReserve * 0.95;
+  const shadowCut = 126 - settings.shadowThreshold * 0.48;
+  const blackCut = 18 + settings.blackMass * 0.72;
   const hardness = settings.transitionHardness / 100;
+  const softness = settings.toneSoftness / 100;
   const count = Math.max(3, Math.min(5, settings.toneCount | 0));
+  const blackScores = [];
 
   for (let y = 0; y < h; y++) {
     const depth = settings.depthEnabled ? y / Math.max(1, h - 1) : 0.5;
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       let g = gray[i];
-      if (regions.sky[i]) g += 46;
-      if (regions.water[i]) g += 24;
-      if (regions.organic[i]) g -= 18;
-      if (depth < 0.34) g += settings.farDetail * 0.18;
-      if (depth > 0.72) g -= settings.blackMass * 0.10;
+      if (regions.sky[i]) g += 58;
+      if (regions.water[i]) g += settings.waterClean ? 42 : 20;
+      if (regions.architecture[i]) g += 18;
+      if (regions.organic[i]) g -= 10 + settings.blackMass * 0.10;
+      if (depth < 0.34) g += settings.farDetail * 0.25;
+      if (depth > 0.72) g -= settings.blackMass * 0.04;
+      const usefulStructure = regions.architecture[i] || regions.lightTrail[i];
 
       if (g >= whiteCut) levels[i] = 0;
-      else if (g <= blackCut) levels[i] = 4;
-      else if (g <= shadowCut) levels[i] = 3;
+      else if (!usefulStructure && !regions.water[i] && !regions.sky[i] && g <= blackCut) {
+        levels[i] = 4;
+        blackScores.push([i, g]);
+      }
+      else if (g <= shadowCut) levels[i] = usefulStructure ? 2 : 3;
       else if (count <= 3) levels[i] = g > (whiteCut + shadowCut) / 2 ? 1 : 3;
       else if (count === 4) levels[i] = g > (whiteCut + shadowCut) / 2 ? 1 : 2;
       else {
         const t = (whiteCut - g) / Math.max(1, whiteCut - blackCut);
-        levels[i] = Math.min(4, Math.max(1, Math.round(1 + t * (2.2 + hardness))));
+        levels[i] = Math.min(3, Math.max(1, Math.round(1 + t * (2.0 + hardness - softness * 0.75))));
       }
     }
   }
 
   mergeTinyToneRegions(levels, w, h, settings.cleanup > 55 ? 2 : 1);
+  limitBlackCoverage(levels, blackScores, w * h, settings.blackCoverageLimit ?? 8);
   return levels;
 }
 
@@ -44,5 +52,14 @@ function mergeTinyToneRegions(levels, w, h, passes) {
         else if (a === b && c === d) levels[i] = Math.round((a + c) / 2);
       }
     }
+  }
+}
+
+function limitBlackCoverage(levels, blackScores, totalPixels, limitPercent) {
+  const maxBlack = Math.round(totalPixels * Math.max(0, limitPercent) / 100);
+  if (blackScores.length <= maxBlack) return;
+  blackScores.sort((a, b) => a[1] - b[1]);
+  for (let i = maxBlack; i < blackScores.length; i++) {
+    levels[blackScores[i][0]] = 3;
   }
 }
