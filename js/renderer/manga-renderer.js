@@ -3,6 +3,7 @@ import { classifyRegions } from './regions.js';
 import { multiScaleEdges } from './edges.js';
 import { simplifyTones } from './tones.js';
 import { texturePixel } from './textures.js';
+import { buildTonalWorkflow } from './tonal-workflow.js';
 
 export function renderManga(imageData, settings, progress = () => {}) {
   const { width: w, height: h, data } = imageData;
@@ -13,12 +14,20 @@ export function renderManga(imageData, settings, progress = () => {}) {
   const normalized = normalizeTones(smooth, settings);
   progress(28, 'Etapa 2: generando máscaras por regiones');
   const regions = classifyRegions(normalized, w, h, settings);
+  if (settings.workflowMode !== 'experimental-lines') {
+    progress(58, 'Etapas 3 y 4: mono opcional y threshold');
+    progress(72, `Etapa 5: aplicando trama 60L a ${settings.renderDpi || 300} dpi`);
+    const layers = buildTonalWorkflow(data, normalized, regions, w, h, settings);
+    progress(100, 'Flujo tonal completo');
+    return { width: w, height: h, layers };
+  }
   progress(42, 'Etapas 3 y 4: extrayendo y limpiando líneas');
   const edges = multiScaleEdges(normalized, w, h, settings, regions);
   progress(58, 'Etapa 5: construyendo tonos y sombras');
   const tones = simplifyTones(normalized, w, h, settings, regions);
   progress(72, 'Aplicando tramas localizadas');
-  const layers = composeLayers(data, normalized, tones, edges, regions, w, h, settings);
+  const tonalLayers = buildTonalWorkflow(data, normalized, regions, w, h, settings);
+  const layers = { ...tonalLayers, ...composeLayers(data, normalized, tones, edges, regions, w, h, settings) };
   progress(100, 'Render completo');
   return { width: w, height: h, layers };
 }

@@ -16,6 +16,18 @@ export const TEXTURE_MODES = [
   { value: 'none', label: 'Sin trama' },
 ];
 
+export const WORKFLOW_MODES = [
+  { value: 'grayscale-manga', label: 'Grises → Mono opcional → Threshold → Trama 60L' },
+  { value: 'experimental-lines', label: 'Líneas automáticas (experimental)' },
+];
+
+export const SCREEN_TARGETS = [
+  { value: 'midtones', label: 'Todos los medios tonos' },
+  { value: 'architecture', label: 'Arquitectura' },
+  { value: 'water', label: 'Agua' },
+  { value: 'vegetation', label: 'Vegetación' },
+];
+
 export const EXPORT_FORMATS = [
   { value: 'web', label: 'Web 2000px', px: 2000, inches: 6.67 },
   { value: 'a5-300', label: 'A5 · 300dpi', px: 2480, inches: 8.27, dpi: 300, page: 'A5' },
@@ -56,6 +68,10 @@ export const CONTROL_DEFS = {
   texture: { label: 'Textura', min: 0, max: 100, step: 1 },
   posterization: { label: 'Posterización', min: 0, max: 100, step: 1 },
   thresholdMix: { label: 'Threshold', min: 0, max: 100, step: 1 },
+  thresholdValue: { label: 'Umbral fino', min: 0, max: 255, step: 1 },
+  thresholdFeather: { label: 'Transición monocromática', min: 0, max: 48, step: 1 },
+  blackCompression: { label: 'Compresión de negros', min: 0, max: 100, step: 1 },
+  screenAngle: { label: 'Ángulo de trama', min: 0, max: 90, step: 1 },
   shadowCompression: { label: 'Compresión de negros', min: 0, max: 100, step: 1 },
   regionMerge: { label: 'Fusión de regiones pequeñas', min: 0, max: 100, step: 1 },
   skyInfluence: { label: 'Influencia cielo', min: 0, max: 100, step: 1 },
@@ -66,7 +82,9 @@ export const CONTROL_DEFS = {
 };
 
 export const DEFAULT_SETTINGS = {
-  preset: 'staged-drawing',
+  preset: 'grayscale-manga-base',
+  workflowMode: 'grayscale-manga',
+  screenTarget: 'midtones',
   sceneType: 'urban',
   exportFormat: 'web',
   textureMode: 'none',
@@ -99,6 +117,10 @@ export const DEFAULT_SETTINGS = {
   texture: 8,
   posterization: 18,
   thresholdMix: 6,
+  thresholdValue: 132,
+  thresholdFeather: 12,
+  blackCompression: 68,
+  screenAngle: 45,
   shadowCompression: 72,
   regionMerge: 52,
   skyInfluence: 90,
@@ -120,14 +142,63 @@ export const DEFAULT_SETTINGS = {
   shadowsEnabled: true,
   vegetationEnabled: true,
   lightsEnabled: true,
+  monochromeEnabled: false,
+  thresholdEnabled: false,
+  screen60Enabled: false,
 };
 
 export const PRESETS = [
   {
-    id: 'staged-drawing',
-    name: 'Flujo tipo Clip Studio',
+    id: 'grayscale-manga-base',
+    name: 'Base manga por grises',
     settings: {
-      sceneType: 'urban', textureMode: 'none', value: 12, brightness: 8, contrast: 12,
+      workflowMode: 'grayscale-manga', screenTarget: 'midtones', textureMode: 'none',
+      value: 0, brightness: 0, contrast: 8, blackPoint: 5, whitePoint: 250,
+      gamma: 105, grayscaleMix: 100, cleanup: 58, whiteReserve: 42,
+      blackCompression: 68, thresholdValue: 132, thresholdFeather: 12,
+      screenAngle: 45, monochromeEnabled: false, thresholdEnabled: false,
+      screen60Enabled: false, grayscaleEnabled: true,
+    },
+  },
+  {
+    id: 'grayscale-only',
+    name: 'Escala de grises',
+    settings: {
+      workflowMode: 'grayscale-manga', screenTarget: 'midtones', value: 0,
+      brightness: 0, contrast: 0, blackPoint: 0, whitePoint: 255, gamma: 100,
+      grayscaleMix: 100, cleanup: 42, whiteReserve: 20, blackCompression: 40,
+      monochromeEnabled: false, thresholdEnabled: false, screen60Enabled: false,
+      grayscaleEnabled: true,
+    },
+  },
+  {
+    id: 'controlled-monochrome',
+    name: 'Monocromático controlado',
+    settings: {
+      workflowMode: 'grayscale-manga', screenTarget: 'midtones', value: 4,
+      brightness: 4, contrast: 10, blackPoint: 6, whitePoint: 248, gamma: 108,
+      grayscaleMix: 100, cleanup: 64, whiteReserve: 48, blackCompression: 72,
+      thresholdValue: 132, thresholdFeather: 16, monochromeEnabled: true,
+      thresholdEnabled: false, screen60Enabled: false, grayscaleEnabled: true,
+    },
+  },
+  {
+    id: 'screen-60l',
+    name: 'Trama 60L',
+    settings: {
+      workflowMode: 'grayscale-manga', screenTarget: 'midtones', value: 4,
+      brightness: 4, contrast: 8, blackPoint: 5, whitePoint: 250, gamma: 106,
+      grayscaleMix: 100, cleanup: 62, whiteReserve: 52, blackCompression: 74,
+      thresholdValue: 128, thresholdFeather: 12, screenAngle: 45,
+      monochromeEnabled: false, thresholdEnabled: false, screen60Enabled: true,
+      grayscaleEnabled: true,
+    },
+  },
+  {
+    id: 'staged-drawing',
+    name: 'Líneas automáticas · experimental',
+    settings: {
+      workflowMode: 'experimental-lines', sceneType: 'urban', textureMode: 'none', value: 12, brightness: 8, contrast: 12,
       blackPoint: 7, whitePoint: 247, gamma: 112, grayscaleMix: 100,
       detail: 66, cleanup: 68, lineSimplify: 58, lineConnect: 68,
       mainLine: 78, mainLineWeight: 2, secondaryLine: 74, secondaryLineWeight: 1,
@@ -147,6 +218,9 @@ export const PRESETS = [
     id: 'inking-base',
     name: 'Base para entintado',
     settings: {
+      workflowMode: 'grayscale-manga', screenTarget: 'midtones',
+      monochromeEnabled: false, thresholdEnabled: false, screen60Enabled: false,
+      thresholdValue: 138, thresholdFeather: 14, blackCompression: 82,
       sceneType: 'urban', textureMode: 'none', value: 18, brightness: 14, contrast: 8,
       blackPoint: 5, whitePoint: 250, gamma: 118, grayscaleMix: 100,
       detail: 66, cleanup: 72, lineSimplify: 64, lineConnect: 72, mainLine: 78, mainLineWeight: 2,
