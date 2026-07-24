@@ -1,0 +1,12 @@
+# CPU-only (geometry + self-test): enough to run selftest.py and rotate.py --dry-run
+numpy>=1.26
+pillow>=10.0
+
+# GPU pipeline (depth + line-art re-generation). Install on the rented 4090.
+# Pinned loosely; adjust to your CUDA. See README.md.
+# torch>=2.2                      # match your CUDA build (cu121, etc.)
+# transformers>=4.44             # Depth Anything V2 pipeline
+# diffusers>=0.30                # SDXL + multi-ControlNet inpaint
+# accelerate>=0.33
+# controlnet-aux>=0.4            # lineart preprocessor
+# xformers                       # optional, memory-efficient attention
