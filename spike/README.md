@@ -82,10 +82,14 @@ spike/
 ControlNet), `seed` (coherencia entre vistas), y el `prompt` de line-art.
 
 ## Limitaciones (honestas)
-- El warp es un **forward splat de 1 píxel**: produce huecos de *resampling*
-  además de los de des-oclusión real. Para prod, migrar a **warp por malla
-  (triángulos)** o splat con radio, y/o proxy **MoGe/DA3** (point-map denso) —
-  ver `docs/03 §3` y backlog P1 en `docs/05 §4`.
+- El warp es un forward splat + **relleno de huecos guiado por z-buffer**
+  (`fill_passes`): cierra los gaps de *resampling* desde el vecino más cercano en
+  profundidad (foreground) y deja abiertos solo los **huecos de des-oclusión
+  reales** — así `hole_ratio` mide "cuánto hay que alucinar" y no ruido de
+  muestreo (verificado en CPU: rampa suave 701→0 huecos; escalón de profundidad
+  3158→2245). Para máxima calidad en prod, migrar a **warp por malla
+  (triángulos)** y/o proxy **MoGe/DA3** (point-map denso) — ver `docs/03 §3` y
+  backlog P1 en `docs/05 §4`.
 - La perspectiva del re-styler es **plausible, no milimétrica** (la difusión
   interpreta la proxy). Acotar el rango de ángulo mitiga (docs/03 §5).
 - **Licencias**: usar Depth Anything V2-**Small** (Apache) — no Base/Large/Giant
