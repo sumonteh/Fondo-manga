@@ -46,7 +46,8 @@ def main() -> None:
         "sec_depth", "sec_warp", "sec_restyle", "sec_total", "restyled", "out",
     ]
     with open(outdir / "results.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+        # extra meta keys (e.g. lineart_hint) are fine; only write known fields.
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
 
