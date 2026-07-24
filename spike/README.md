@@ -1,5 +1,20 @@
 # Spike M0 — Fake-3D rotación de una imagen → line-art
 
+> **Estado: cerrado como scaffold ejecutable.** El pipeline Familia C completo
+> está implementado; la geometría y el preprocesador de line-art están
+> **verificados en CPU** (selftest 5/5 + dry-run). Lo único que queda por validar
+> es la **difusión** (`restyle_to_lineart`), que requiere GPU + descarga de
+> modelos — sigue el runbook de abajo en un RTX 4090. Próximo paso único:
+> ejecutar `sweep.py` real y llenar la tabla ángulo→calidad→GPU-seg (M0 §3).
+>
+> | Pieza | Verificación |
+> |---|---|
+> | `camera.py` · `warp.py` (geometría + gap-fill z-buffer) | ✅ CPU (selftest 5/5) |
+> | `restyle.py` · `lineart_preprocess` (hint) | ✅ CPU (fallback DoG) |
+> | `depth.py` (Depth Anything V2-Small) | ⏳ GPU |
+> | `restyle.py` · difusión SDXL+ControlNet+inpaint | ⏳ GPU |
+
+
 Primer spike técnico de `docs/05-mvp.md`. Valida la hipótesis central del
 producto: **dada UNA imagen de fondo, re-encuadrarla desde otro ángulo de cámara
 con salida line-art coherente**, usando el pipeline **Familia C "Fake-3D"** de
