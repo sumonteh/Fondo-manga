@@ -32,6 +32,79 @@ DEFAULT_PROMPT = (
 )
 DEFAULT_NEGATIVE = "color, photo, blurry, lowres, watermark, text"
 
+# Line-art ControlNet hint: white lines on black, matching controlnet-aux's
+# LineartAnimeDetector output convention. Flip ``invert`` if your checkpoint
+# expects black-on-white.
+_lineart_detector = None
+
+
+def _gaussian_blur(gray: np.ndarray, sigma: float) -> np.ndarray:
+    """Tiny separable Gaussian blur (NumPy only, no SciPy)."""
+    if sigma <= 0:
+        return gray
+    radius = max(1, int(round(3 * sigma)))
+    x = np.arange(-radius, radius + 1)
+    k = np.exp(-(x**2) / (2 * sigma**2))
+    k /= k.sum()
+    pad = np.pad(gray, ((0, 0), (radius, radius)), mode="edge")
+    horiz = np.stack([pad[:, i : i + gray.shape[1]] for i in range(len(k))], 0)
+    blurred = np.tensordot(k, horiz, axes=(0, 0))
+    pad = np.pad(blurred, ((radius, radius), (0, 0)), mode="edge")
+    vert = np.stack([pad[i : i + gray.shape[0], :] for i in range(len(k))], 0)
+    return np.tensordot(k, vert, axes=(0, 0))
+
+
+def _cpu_lineart(image: Image.Image, sigma: float, thresh: float, invert: bool) -> Image.Image:
+    """CPU fallback line extractor via Difference-of-Gaussians edges.
+
+    Not a learned detector — just enough to run the pipeline end-to-end on CPU
+    (``rotate.py --dry-run``) and to eyeball the hint. On the GPU the real
+    ``LineartAnimeDetector`` is used instead.
+    """
+    gray = np.asarray(image.convert("L"), dtype=np.float64) / 255.0
+    dog = _gaussian_blur(gray, sigma) - _gaussian_blur(gray, sigma * 2.2)
+    mag = np.abs(dog)
+    mag /= mag.max() + 1e-8
+    lines = (mag > thresh).astype(np.uint8) * 255  # white lines on black
+    if invert:
+        lines = 255 - lines
+    return Image.fromarray(lines).convert("RGB")
+
+
+def lineart_preprocess(
+    image: Image.Image,
+    method: str = "anime",
+    sigma: float = 1.2,
+    thresh: float = 0.09,
+    invert: bool = False,
+) -> Image.Image:
+    """Produce the line-art ControlNet hint from an RGB image.
+
+    Uses ``controlnet_aux.LineartAnimeDetector`` (or ``LineartDetector`` for
+    ``method="realistic"``) when torch is available; otherwise falls back to a
+    NumPy DoG edge map so the pipeline still runs on CPU.
+
+    Args:
+        method: ``"anime"`` (manga line art) or ``"realistic"``.
+        sigma/thresh: CPU-fallback edge sensitivity.
+        invert: flip polarity to black-on-white if the checkpoint expects it.
+    """
+    global _lineart_detector
+    try:
+        import torch  # noqa: F401
+        from controlnet_aux import LineartAnimeDetector, LineartDetector
+    except Exception:
+        return _cpu_lineart(image, sigma, thresh, invert)
+
+    if _lineart_detector is None:
+        cls = LineartAnimeDetector if method == "anime" else LineartDetector
+        _lineart_detector = cls.from_pretrained("lllyasviel/Annotators")
+    hint = _lineart_detector(image)
+    if invert:
+        hint = Image.fromarray(255 - np.asarray(hint.convert("L"))).convert("RGB")
+    return hint.convert("RGB")
+
+
 _pipe = None
 
 

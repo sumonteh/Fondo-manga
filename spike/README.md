@@ -70,7 +70,8 @@ spike/
     camera.py    # intrínsecos, rotaciones, unproject/project/reproject  (CPU, testeado)
     warp.py      # forward warp con z-buffer + máscara de huecos          (CPU, testeado)
     depth.py     # Depth Anything V2-Small (Apache-2.0)                    (GPU)
-    restyle.py   # SDXL + ControlNet Depth+Lineart + inpaint              (GPU)
+    restyle.py   # lineart_preprocess (GPU detector + CPU fallback) +
+                 # SDXL + ControlNet Depth+Lineart + inpaint              (GPU)
   rotate.py      # entrypoint 1 imagen + ángulo → line-art (--dry-run CPU)
   sweep.py       # barrido de ángulos → results.csv/md
   selftest.py    # tests de geometría CPU-only (gate de CI)
@@ -78,8 +79,13 @@ spike/
 ```
 
 ## Knobs a tunear en el spike (restyle.py)
-`denoise` (fuerza img2img), `depth_scale` / `lineart_scale` (peso de cada
-ControlNet), `seed` (coherencia entre vistas), y el `prompt` de line-art.
+- **Re-styler:** `denoise` (fuerza img2img), `depth_scale` / `lineart_scale`
+  (peso de cada ControlNet), `seed` (coherencia entre vistas), y el `prompt`.
+- **Preprocesador de line-art** (`lineart_preprocess`): `method` (`"anime"` →
+  `LineartAnimeDetector`, o `"realistic"`), `invert` (polaridad blanco/negro
+  según el checkpoint de ControlNet), y `sigma`/`thresh` del fallback CPU (DoG).
+  En GPU usa el detector aprendido; sin torch cae al extractor NumPy, así el
+  `--dry-run` guarda también `*.lineart.png` para inspeccionar el hint.
 
 ## Limitaciones (honestas)
 - El warp es un forward splat + **relleno de huecos guiado por z-buffer**

@@ -50,20 +50,26 @@ def run(
     t_warp = time.time()
 
     if dry_run:
-        # Save the geometric proxy so you can eyeball the warp without a GPU.
+        # Save the geometric proxy + the line-art hint so you can eyeball both
+        # without a GPU (the hint uses the NumPy CPU fallback).
+        from fake3d.restyle import lineart_preprocess
+
         Image.fromarray(warped).save(out_path)
-        result_meta = {"restyled": False}
+        hint_path = out_path.rsplit(".", 1)[0] + ".lineart.png"
+        lineart_preprocess(Image.fromarray(warped), method="anime").save(hint_path)
+        result_meta = {"restyled": False, "lineart_hint": hint_path}
         t_style = t_warp
     else:
         from fake3d.depth import estimate_depth  # noqa: F401 (already imported)
-        from fake3d.restyle import restyle_to_lineart
+        from fake3d.restyle import lineart_preprocess, restyle_to_lineart
 
         new_img = Image.fromarray(warped)
         new_depth = estimate_depth(new_img)
         depth_ctrl = Image.fromarray(
             (255 * (new_depth.max() - new_depth) / (np.ptp(new_depth) + 1e-8)).astype("uint8")
         ).convert("RGB")
-        lineart_ctrl = new_img  # placeholder; plug a lineart preprocessor here
+        # Line-art hint from the warped proxy (LineartAnimeDetector on GPU).
+        lineart_ctrl = lineart_preprocess(new_img, method="anime")
         out = restyle_to_lineart(warped, holes, depth_ctrl, lineart_ctrl, seed=seed)
         out.save(out_path)
         result_meta = {"restyled": True}
