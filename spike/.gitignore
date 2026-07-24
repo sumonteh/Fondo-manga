@@ -1,0 +1,6 @@
+# Generated sweep outputs (keep the committed example input, not the runs)
+examples/out/
+*.png
+!examples/scene.png
+__pycache__/
+*.pyc
