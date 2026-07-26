@@ -146,14 +146,17 @@ def _get_pipe():
     global _pipe
     if _pipe is None:
         import torch
-        from diffusers import StableDiffusionXLControlNetInpaintPipeline
+        from diffusers import StableDiffusionXLControlNetImg2ImgPipeline
 
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         controlnets = [
             _load_controlnet(CONTROLNET_DEPTH, dtype),
             _load_controlnet(CONTROLNET_LINEART, dtype),
         ]
-        pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
+        # img2img (not inpaint): re-render the WHOLE warped frame in line-art,
+        # guided by depth+lineart ControlNets — inpaint-only-holes left the
+        # visible warp as a raw photo instead of restyling it.
+        pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
             SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
         )
         if torch.cuda.is_available():
@@ -179,7 +182,7 @@ def restyle_to_lineart(
     lineart_control: Image.Image,
     prompt: str = DEFAULT_PROMPT,
     seed: int = 12345,
-    denoise: float = 0.55,
+    denoise: float = 0.8,
     depth_scale: float = 0.75,
     lineart_scale: float = 0.9,
 ) -> Image.Image:
@@ -201,11 +204,12 @@ def restyle_to_lineart(
     # SDXL needs a friendly resolution (multiples of 64, ~1024 on the long side)
     # and all conditioning images at the SAME size as the latent, otherwise the
     # ControlNet cond and the latent mismatch (RuntimeError on tensor sizes).
+    # ``hole_mask`` is unused here: img2img re-renders the whole frame (holes
+    # get drawn as part of the full generation, guided by the ControlNets).
     src_w, src_h = Image.fromarray(warped_rgb).size
     W, H = _sdxl_size(src_w, src_h)
 
     init = Image.fromarray(warped_rgb).resize((W, H), Image.BILINEAR)
-    mask = Image.fromarray(hole_mask).resize((W, H), Image.NEAREST)
     depth_control = depth_control.resize((W, H), Image.BILINEAR)
     lineart_control = lineart_control.resize((W, H), Image.BILINEAR)
 
@@ -213,13 +217,10 @@ def restyle_to_lineart(
         prompt=prompt,
         negative_prompt=DEFAULT_NEGATIVE,
         image=init,
-        mask_image=mask,
         control_image=[depth_control, lineart_control],
         controlnet_conditioning_scale=[depth_scale, lineart_scale],
         strength=denoise,
         num_inference_steps=30,
-        height=H,
-        width=W,
         generator=generator,
     ).images[0]
     # Return at the original working resolution so downstream stays consistent.
