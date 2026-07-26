@@ -112,7 +112,7 @@ def lineart_preprocess(
     return hint.convert("RGB")
 
 
-_pipe = None
+_pipes: dict = {}  # cache: kind -> pipeline
 
 
 def _load_controlnet(ref, dtype):
@@ -142,23 +142,35 @@ def _sdxl_size(w: int, h: int, target: int = 1024, mult: int = 64) -> tuple[int,
     return W, H
 
 
-def _get_pipe():
-    global _pipe
-    if _pipe is None:
+def _get_pipe(kind: str = "img2img"):
+    """Return (and cache) a pipeline.
+
+    kind="img2img"  -> full line-art restyle (depth+lineart ControlNets).
+    kind="inpaint"  -> faithful re-projection: keep the visible warp, fill only
+                       the disoccluded holes photorealistically (depth ControlNet
+                       only, so nothing pushes the image toward line art).
+    """
+    if kind not in _pipes:
         import torch
-        from diffusers import StableDiffusionXLControlNetImg2ImgPipeline
+        from diffusers import (
+            StableDiffusionXLControlNetImg2ImgPipeline,
+            StableDiffusionXLControlNetInpaintPipeline,
+        )
 
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        controlnets = [
-            _load_controlnet(CONTROLNET_DEPTH, dtype),
-            _load_controlnet(CONTROLNET_LINEART, dtype),
-        ]
-        # img2img (not inpaint): re-render the WHOLE warped frame in line-art,
-        # guided by depth+lineart ControlNets — inpaint-only-holes left the
-        # visible warp as a raw photo instead of restyling it.
-        pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
-            SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
-        )
+        if kind == "inpaint":
+            controlnets = [_load_controlnet(CONTROLNET_DEPTH, dtype)]
+            pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
+                SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
+            )
+        else:
+            controlnets = [
+                _load_controlnet(CONTROLNET_DEPTH, dtype),
+                _load_controlnet(CONTROLNET_LINEART, dtype),
+            ]
+            pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
+                SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
+            )
         if torch.cuda.is_available():
             # 32 GB (RTX 5090) fits comfortably; set FONDO_LOWVRAM=1 on <=16 GB
             # cards (e.g. RTX 5080) to offload submodules to CPU instead.
@@ -166,13 +178,56 @@ def _get_pipe():
                 pipe.enable_model_cpu_offload()
             else:
                 pipe = pipe.to("cuda")
-            # xformers is optional; torch SDPA already gives efficient attention.
-            try:
+            try:  # xformers optional; torch SDPA already gives efficient attention
                 pipe.enable_xformers_memory_efficient_attention()
             except Exception:
                 pass
-        _pipe = pipe
-    return _pipe
+        _pipes[kind] = pipe
+    return _pipes[kind]
+
+
+def reproject_fill(
+    warped_rgb: np.ndarray,
+    hole_mask: np.ndarray,
+    depth_control: Image.Image,
+    prompt: str = "",
+    seed: int = 12345,
+    denoise: float = 0.99,
+    depth_scale: float = 0.9,
+) -> Image.Image:
+    """Faithful re-angle: keep the warped scene, fill only the holes (no line art).
+
+    Uses the inpaint pipeline with the hole mask so the visible content stays as
+    the original photo re-projected to the new camera, and only the disoccluded
+    regions are hallucinated — the output looks like the SAME image from another
+    angle. This is the mode to eyeball whether the rotation is correct.
+    """
+    import torch
+
+    pipe = _get_pipe("inpaint")
+    generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu")
+    generator = generator.manual_seed(seed)
+
+    src_w, src_h = Image.fromarray(warped_rgb).size
+    W, H = _sdxl_size(src_w, src_h)
+    init = Image.fromarray(warped_rgb).resize((W, H), Image.BILINEAR)
+    mask = Image.fromarray(hole_mask).resize((W, H), Image.NEAREST)
+    depth_control = depth_control.resize((W, H), Image.BILINEAR)
+
+    result = pipe(
+        prompt=prompt,
+        negative_prompt="line art, drawing, sketch, cartoon, monochrome",
+        image=init,
+        mask_image=mask,
+        control_image=depth_control,
+        controlnet_conditioning_scale=depth_scale,
+        strength=denoise,
+        num_inference_steps=30,
+        height=H,
+        width=W,
+        generator=generator,
+    ).images[0]
+    return result.resize((src_w, src_h), Image.BILINEAR)
 
 
 def restyle_to_lineart(
