@@ -28,7 +28,10 @@ import os
 
 SDXL_BASE = os.environ.get("FONDO_SDXL_BASE", "stabilityai/stable-diffusion-xl-base-1.0")
 CONTROLNET_DEPTH = os.environ.get("FONDO_CN_DEPTH", "diffusers/controlnet-depth-sdxl-1.0")
-CONTROLNET_LINEART = os.environ.get("FONDO_CN_LINEART", "kataragi/ControlNet-LineartXL")
+# Official diffusers-format edge ControlNet: guaranteed to load, permissive
+# license, and works with our line-art hint as an edge map. For stronger anime
+# line fidelity, override with FONDO_CN_LINEART=r3gm/controlnet-lineart-anime-sdxl-fp16.
+CONTROLNET_LINEART = os.environ.get("FONDO_CN_LINEART", "diffusers/controlnet-canny-sdxl-1.0")
 
 DEFAULT_PROMPT = (
     "manga background, clean black line art, screentone-ready, detailed "
