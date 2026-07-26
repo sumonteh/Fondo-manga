@@ -92,6 +92,12 @@ python spike/rotate.py --image mi_fondo.png --yaw -20 --out mi_rotado.png
 - `lineart_scale` / `depth_scale`: peso de cada ControlNet.
 - `invert` en `lineart_preprocess`: si las líneas salen con polaridad invertida.
 
+**Variables de entorno útiles (sin tocar código):**
+- **GPU de ≤16 GB** (p.ej. RTX 5080): `export FONDO_LOWVRAM=1` antes de correr →
+  activa `enable_model_cpu_offload` para que quepa. Con 24–32 GB no hace falta.
+- **Cambiar un checkpoint** que no cargue: `FONDO_SDXL_BASE`, `FONDO_CN_DEPTH`,
+  `FONDO_CN_LINEART` (apunta a un ControlNet SDXL en formato diffusers).
+
 ## Paso 8 — ⚠️ Apagar para dejar de pagar
 **Console → Instances → Stop** (o **Destroy** si ya no la usas). Mientras esté
 *Running* factura por hora aunque no la uses.

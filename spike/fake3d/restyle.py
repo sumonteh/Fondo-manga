@@ -22,9 +22,13 @@ import numpy as np
 from PIL import Image
 
 # --- Model choices (open weights; confirm commercial license per checkpoint) ---
-SDXL_BASE = "stabilityai/stable-diffusion-xl-base-1.0"          # verify per use
-CONTROLNET_DEPTH = "diffusers/controlnet-depth-sdxl-1.0"        # depth conditioning
-CONTROLNET_LINEART = "kataragi/ControlNet-LineartXL"            # anime line-art
+# All three are overridable via env vars so you can swap a checkpoint without
+# editing code (e.g. if a ControlNet ships as a single file, not diffusers fmt).
+import os
+
+SDXL_BASE = os.environ.get("FONDO_SDXL_BASE", "stabilityai/stable-diffusion-xl-base-1.0")
+CONTROLNET_DEPTH = os.environ.get("FONDO_CN_DEPTH", "diffusers/controlnet-depth-sdxl-1.0")
+CONTROLNET_LINEART = os.environ.get("FONDO_CN_LINEART", "kataragi/ControlNet-LineartXL")
 
 DEFAULT_PROMPT = (
     "manga background, clean black line art, screentone-ready, detailed "
@@ -108,26 +112,51 @@ def lineart_preprocess(
 _pipe = None
 
 
+def _load_controlnet(ref, dtype):
+    """Load a ControlNet from a diffusers-format repo or a single-file checkpoint."""
+    from diffusers import ControlNetModel
+
+    try:
+        return ControlNetModel.from_pretrained(ref, torch_dtype=dtype)
+    except Exception as e_repo:
+        # Some checkpoints ship as a single .safetensors, not diffusers format.
+        try:
+            return ControlNetModel.from_single_file(ref, torch_dtype=dtype)
+        except Exception as e_file:
+            raise RuntimeError(
+                f"Could not load ControlNet '{ref}' as diffusers repo "
+                f"({e_repo}) nor as single file ({e_file}). Override it with an "
+                f"env var (FONDO_CN_DEPTH / FONDO_CN_LINEART) pointing at a "
+                f"diffusers-format SDXL ControlNet."
+            ) from e_file
+
+
 def _get_pipe():
     global _pipe
     if _pipe is None:
         import torch
-        from diffusers import (
-            ControlNetModel,
-            StableDiffusionXLControlNetInpaintPipeline,
-        )
+        from diffusers import StableDiffusionXLControlNetInpaintPipeline
 
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         controlnets = [
-            ControlNetModel.from_pretrained(CONTROLNET_DEPTH, torch_dtype=dtype),
-            ControlNetModel.from_pretrained(CONTROLNET_LINEART, torch_dtype=dtype),
+            _load_controlnet(CONTROLNET_DEPTH, dtype),
+            _load_controlnet(CONTROLNET_LINEART, dtype),
         ]
         pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
             SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
         )
         if torch.cuda.is_available():
-            pipe = pipe.to("cuda")
-            pipe.enable_xformers_memory_efficient_attention()
+            # 32 GB (RTX 5090) fits comfortably; set FONDO_LOWVRAM=1 on <=16 GB
+            # cards (e.g. RTX 5080) to offload submodules to CPU instead.
+            if os.environ.get("FONDO_LOWVRAM") == "1":
+                pipe.enable_model_cpu_offload()
+            else:
+                pipe = pipe.to("cuda")
+            # xformers is optional; torch SDPA already gives efficient attention.
+            try:
+                pipe.enable_xformers_memory_efficient_attention()
+            except Exception:
+                pass
         _pipe = pipe
     return _pipe
 
