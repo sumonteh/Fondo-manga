@@ -42,7 +42,14 @@ def estimate_depth(image: Image.Image) -> np.ndarray:
     # Normalize disparity to (0, 1], then invert to a depth-like quantity.
     d = disparity - disparity.min()
     d = d / (d.max() + 1e-8)
-    depth = 1.0 / (d * 0.9 + 0.1)  # in [~1.1, 10]; monotonic far>near
+    # Compress the near/far ratio: a large range exaggerates parallax and melts
+    # the warp. Default ~3x (indoor-ish). Raise FONDO_DEPTH_RANGE for scenes with
+    # real depth (streets, landscapes), lower it if the warp still distorts.
+    import os
+
+    ratio = max(1.2, float(os.environ.get("FONDO_DEPTH_RANGE", "3.0")))
+    lo = 1.0 / ratio
+    depth = 1.0 / (d * (1.0 - lo) + lo)  # near(d=1)->1.0, far(d=0)->ratio
 
     # Resize to the image resolution if the model worked at a different size.
     H, W = image.height, image.width

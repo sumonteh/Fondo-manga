@@ -73,7 +73,7 @@ def forward_warp(
     dolly: float = 0.0,
     K: np.ndarray | None = None,
     pivot_depth: float | None = None,
-    fill_passes: int = 3,
+    fill_passes: int = 6,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Warp ``image`` to a new camera pose using ``depth``.
 
