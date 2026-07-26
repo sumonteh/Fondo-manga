@@ -134,6 +134,14 @@ def _load_controlnet(ref, dtype):
             ) from e_file
 
 
+def _sdxl_size(w: int, h: int, target: int = 1024, mult: int = 64) -> tuple[int, int]:
+    """Nearest SDXL-friendly (W, H): long side ~target, both multiples of ``mult``."""
+    scale = target / max(w, h)
+    W = max(mult, int(round(w * scale / mult)) * mult)
+    H = max(mult, int(round(h * scale / mult)) * mult)
+    return W, H
+
+
 def _get_pipe():
     global _pipe
     if _pipe is None:
@@ -190,8 +198,16 @@ def restyle_to_lineart(
     generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu")
     generator = generator.manual_seed(seed)
 
-    init = Image.fromarray(warped_rgb)
-    mask = Image.fromarray(hole_mask)
+    # SDXL needs a friendly resolution (multiples of 64, ~1024 on the long side)
+    # and all conditioning images at the SAME size as the latent, otherwise the
+    # ControlNet cond and the latent mismatch (RuntimeError on tensor sizes).
+    src_w, src_h = Image.fromarray(warped_rgb).size
+    W, H = _sdxl_size(src_w, src_h)
+
+    init = Image.fromarray(warped_rgb).resize((W, H), Image.BILINEAR)
+    mask = Image.fromarray(hole_mask).resize((W, H), Image.NEAREST)
+    depth_control = depth_control.resize((W, H), Image.BILINEAR)
+    lineart_control = lineart_control.resize((W, H), Image.BILINEAR)
 
     result = pipe(
         prompt=prompt,
@@ -202,6 +218,9 @@ def restyle_to_lineart(
         controlnet_conditioning_scale=[depth_scale, lineart_scale],
         strength=denoise,
         num_inference_steps=30,
+        height=H,
+        width=W,
         generator=generator,
     ).images[0]
-    return result
+    # Return at the original working resolution so downstream stays consistent.
+    return result.resize((src_w, src_h), Image.BILINEAR)
