@@ -159,9 +159,12 @@ def _get_pipe(kind: str = "img2img"):
 
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         if kind == "inpaint":
-            controlnets = [_load_controlnet(CONTROLNET_DEPTH, dtype)]
+            # Single ControlNet (not a list): a 1-element list makes diffusers
+            # wrap it in MultiControlNetModel, which then demands list-typed
+            # control images. reproject_fill passes a single control image.
+            controlnet = _load_controlnet(CONTROLNET_DEPTH, dtype)
             pipe = StableDiffusionXLControlNetInpaintPipeline.from_pretrained(
-                SDXL_BASE, controlnet=controlnets, torch_dtype=dtype
+                SDXL_BASE, controlnet=controlnet, torch_dtype=dtype
             )
         else:
             controlnets = [
