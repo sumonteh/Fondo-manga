@@ -27,6 +27,7 @@ def run(
     dolly: float,
     seed: int,
     dry_run: bool,
+    mode: str = "lineart",
 ) -> dict:
     img = Image.open(image_path).convert("RGB")
     rgb = np.asarray(img)
@@ -61,18 +62,27 @@ def run(
         t_style = t_warp
     else:
         from fake3d.depth import estimate_depth  # noqa: F401 (already imported)
-        from fake3d.restyle import lineart_preprocess, restyle_to_lineart
 
         new_img = Image.fromarray(warped)
         new_depth = estimate_depth(new_img)
         depth_ctrl = Image.fromarray(
             (255 * (new_depth.max() - new_depth) / (np.ptp(new_depth) + 1e-8)).astype("uint8")
         ).convert("RGB")
-        # Line-art hint from the warped proxy (LineartAnimeDetector on GPU).
-        lineart_ctrl = lineart_preprocess(new_img, method="anime")
-        out = restyle_to_lineart(warped, holes, depth_ctrl, lineart_ctrl, seed=seed)
+
+        if mode == "reproject":
+            # Faithful re-angle: keep the photo, fill only the holes (no line art).
+            from fake3d.restyle import reproject_fill
+
+            out = reproject_fill(warped, holes, depth_ctrl, seed=seed)
+            result_meta = {"mode": "reproject"}
+        else:
+            # Full line-art restyle guided by depth + line-art hint.
+            from fake3d.restyle import lineart_preprocess, restyle_to_lineart
+
+            lineart_ctrl = lineart_preprocess(new_img, method="anime")
+            out = restyle_to_lineart(warped, holes, depth_ctrl, lineart_ctrl, seed=seed)
+            result_meta = {"mode": "lineart"}
         out.save(out_path)
-        result_meta = {"restyled": True}
         t_style = time.time()
 
     return {
@@ -100,10 +110,17 @@ def main() -> None:
         action="store_true",
         help="CPU-only: skip models, save the geometric warp proxy",
     )
+    ap.add_argument(
+        "--mode",
+        choices=["lineart", "reproject"],
+        default="lineart",
+        help="lineart: full manga restyle. reproject: faithful re-angle, no line art.",
+    )
     args = ap.parse_args()
 
     meta = run(
-        args.image, args.out, args.yaw, args.pitch, args.dolly, args.seed, args.dry_run
+        args.image, args.out, args.yaw, args.pitch, args.dolly, args.seed,
+        args.dry_run, args.mode,
     )
     print(meta)
     print(f"saved -> {args.out}")
